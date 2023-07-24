@@ -1,0 +1,10 @@
+.DS_Store
+*.h
+*.dll
+*.dylib
+*.so
+*.so.*
+open_jtalk_dic_utf_8-*/
+metas.json
+*.vvm
+*.wav

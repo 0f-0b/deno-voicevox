@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "lint": "deno fmt --check && deno lint && deno check --unstable --all examples/simple_tts.ts",
+    "test": "deno test --unstable --check=all --allow-read --allow-write --allow-run=./examples/simple_tts.ts,./examples/simple_tts_wrapper.cmd --allow-ffi"
+  }
+}
