@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --unstable --allow-write=audio.wav --allow-ffi
+#!/usr/bin/env -S deno run --unstable-ffi --allow-write=audio.wav --allow-ffi
 
 import { load } from "../mod.ts";
 

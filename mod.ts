@@ -537,8 +537,8 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     voicevox_voice_model_id,
     voicevox_voice_model_get_metas_json,
     voicevox_voice_model_delete,
-    voicevox_synthesizer_new_with_initialize,
-    voicevox_synthesizer_new_with_initialize_async,
+    voicevox_synthesizer_new,
+    voicevox_synthesizer_new_async,
     voicevox_synthesizer_delete,
     voicevox_synthesizer_load_voice_model,
     voicevox_synthesizer_load_voice_model_async,
@@ -640,7 +640,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     ): Promise<Synthesizer> {
       const ptrCell = new BigUint64Array(1);
       unwrap(
-        await voicevox_synthesizer_new_with_initialize_async(
+        await voicevox_synthesizer_new_async(
           openJtalkGetHandle(openJtalk).raw,
           (() => {
             const struct = voicevox_make_default_initialize_options();
@@ -651,7 +651,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
           })(),
           ptrCell,
         ),
-        "voicevox_synthesizer_new_with_initialize",
+        "voicevox_synthesizer_new",
       );
       return new SynthesizerImpl(
         illegalConstructorKey,
@@ -664,7 +664,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       options?: SynthesizerOptions,
     ): Synthesizer {
       unwrap(
-        voicevox_synthesizer_new_with_initialize(
+        voicevox_synthesizer_new(
           openJtalkGetHandle(openJtalk).raw,
           (() => {
             const struct = voicevox_make_default_initialize_options();
@@ -675,7 +675,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
           })(),
           syncPtrBuf,
         ),
-        "voicevox_synthesizer_new_with_initialize",
+        "voicevox_synthesizer_new",
       );
       return new SynthesizerImpl(
         illegalConstructorKey,

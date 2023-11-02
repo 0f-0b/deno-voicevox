@@ -53,7 +53,7 @@ export default generateAsyncVariants({
     parameters: ["pointer"],
     result: "void",
   },
-  voicevox_synthesizer_new_with_initialize: {
+  voicevox_synthesizer_new: {
     parameters: ["pointer", VoicevoxInitializeOptions, "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
