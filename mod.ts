@@ -169,11 +169,7 @@ export interface SynthesizerOptions {
 export interface SynthesizerConstructor {
   new (): never;
   readonly supportedDevices: SupportedDevices;
-  create(
-    openJtalk: OpenJtalk,
-    options?: SynthesizerOptions,
-  ): Promise<Synthesizer>;
-  createSync(openJtalk: OpenJtalk, options?: SynthesizerOptions): Synthesizer;
+  create(openJtalk: OpenJtalk, options?: SynthesizerOptions): Synthesizer;
   readonly prototype: Synthesizer;
 }
 
@@ -538,7 +534,6 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     voicevox_voice_model_get_metas_json,
     voicevox_voice_model_delete,
     voicevox_synthesizer_new,
-    voicevox_synthesizer_new_async,
     voicevox_synthesizer_delete,
     voicevox_synthesizer_load_voice_model,
     voicevox_synthesizer_load_voice_model_async,
@@ -634,32 +629,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       return cachedSupportedDevices;
     }
 
-    static async create(
-      openJtalk: OpenJtalk,
-      options?: SynthesizerOptions,
-    ): Promise<Synthesizer> {
-      const ptrCell = new BigUint64Array(1);
-      unwrap(
-        await voicevox_synthesizer_new_async(
-          openJtalkGetHandle(openJtalk).raw,
-          (() => {
-            const struct = voicevox_make_default_initialize_options();
-            if (options !== undefined) {
-              synthesizerOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
-          ptrCell,
-        ),
-        "voicevox_synthesizer_new",
-      );
-      return new SynthesizerImpl(
-        illegalConstructorKey,
-        new SynthesizerHandle(Pointer.create(ptrCell[0])),
-      );
-    }
-
-    static createSync(
+    static create(
       openJtalk: OpenJtalk,
       options?: SynthesizerOptions,
     ): Synthesizer {

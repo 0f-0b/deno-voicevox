@@ -56,7 +56,6 @@ export default generateAsyncVariants({
   voicevox_synthesizer_new: {
     parameters: ["pointer", VoicevoxInitializeOptions, "buffer"],
     result: VoicevoxResultCode,
-    nonblocking: "varies",
   },
   voicevox_synthesizer_delete: {
     parameters: ["pointer"],
