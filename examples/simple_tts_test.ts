@@ -1,6 +1,8 @@
 import { assert } from "../deps/std/assert/assert.ts";
 import { assertRejects } from "../deps/std/assert/assert_rejects.ts";
 import { assertStrictEquals } from "../deps/std/assert/assert_strict_equals.ts";
+import { fromFileUrl } from "../deps/std/path/from_file_url.ts";
+import { join } from "../deps/std/path/join.ts";
 
 async function exists(path: string | URL): Promise<boolean> {
   try {
@@ -13,43 +15,44 @@ async function exists(path: string | URL): Promise<boolean> {
   return true;
 }
 
-const rootURL = new URL("..", import.meta.url);
-const entryPointURL = new URL(
+const root = fromFileUrl(new URL("..", import.meta.url));
+const examples = fromFileUrl(new URL(".", import.meta.url));
+const entryPoint = join(
+  examples,
   Deno.build.os === "windows" ? "simple_tts_wrapper.cmd" : "simple_tts.ts",
-  import.meta.url,
 );
-const outputWavURL = new URL("audio.wav", rootURL);
+const outputWavPath = join(root, "audio.wav");
 const permissions: Deno.PermissionOptions = {
-  read: [outputWavURL],
-  write: [outputWavURL],
-  run: [entryPointURL],
+  read: [outputWavPath],
+  write: [outputWavPath],
+  run: [entryPoint],
 };
 
 Deno.test("simple tts", { permissions }, async (t) => {
-  if (await exists(outputWavURL)) {
+  if (await exists(outputWavPath)) {
     throw new TypeError("Aborting test to avoid overwriting 'audio.wav'");
   }
 
   await t.step("synthesize audio", async () => {
-    const { success } = await new Deno.Command(entryPointURL, {
+    const { success } = await new Deno.Command(entryPoint, {
       args: ["テスト"],
-      cwd: rootURL,
+      cwd: root,
       stdout: "inherit",
       stderr: "inherit",
     }).output();
     assert(success);
-    const info = await Deno.lstat(outputWavURL);
+    const info = await Deno.lstat(outputWavPath);
     assert(info.isFile);
-    await Deno.remove(outputWavURL);
+    await Deno.remove(outputWavPath);
   });
 
   await t.step("print usage", async () => {
-    const { code } = await new Deno.Command(entryPointURL, {
-      cwd: rootURL,
+    const { code } = await new Deno.Command(entryPoint, {
+      cwd: root,
       stdout: "inherit",
       stderr: "inherit",
     }).output();
     assertStrictEquals(code, 2);
-    await assertRejects(() => Deno.lstat(outputWavURL), Deno.errors.NotFound);
+    await assertRejects(() => Deno.lstat(outputWavPath), Deno.errors.NotFound);
   });
 });
