@@ -19,10 +19,12 @@ export default generateAsyncVariants({
   voicevox_open_jtalk_rc_new: {
     parameters: ["buffer", "buffer"],
     result: VoicevoxResultCode,
+    nonblocking: "varies",
   },
   voicevox_open_jtalk_rc_use_user_dict: {
     parameters: ["pointer", "pointer"],
     result: VoicevoxResultCode,
+    nonblocking: "varies",
   },
   voicevox_open_jtalk_rc_delete: {
     parameters: ["pointer"],
@@ -188,6 +190,7 @@ export default generateAsyncVariants({
   voicevox_user_dict_load: {
     parameters: ["pointer", "buffer"],
     result: VoicevoxResultCode,
+    nonblocking: "varies",
   },
   voicevox_user_dict_add_word: {
     parameters: ["pointer", "buffer", "buffer"],
@@ -212,6 +215,7 @@ export default generateAsyncVariants({
   voicevox_user_dict_save: {
     parameters: ["pointer", "buffer"],
     result: VoicevoxResultCode,
+    nonblocking: "varies",
   },
   voicevox_user_dict_delete: {
     parameters: ["pointer"],

@@ -28,7 +28,7 @@ const text = Deno.args[0];
 const { Synthesizer, VoiceModel, OpenJtalk, unload } = load(dynamicLibPath);
 try {
   console.log("Initializing…");
-  using openJtalk = OpenJtalk.create(openJtalkDictPath);
+  using openJtalk = await OpenJtalk.create(openJtalkDictPath);
   using synthesizer = Synthesizer.create(openJtalk);
   using model = await VoiceModel.fromFile(modelPath);
   await synthesizer.loadModel(model);

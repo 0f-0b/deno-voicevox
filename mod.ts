@@ -187,13 +187,15 @@ export interface VoiceModelConstructor {
 }
 
 export interface OpenJtalk extends Disposable {
-  useUserDict(userDict: UserDict): undefined;
+  useUserDict(userDict: UserDict): Promise<undefined>;
+  useUserDictSync(userDict: UserDict): undefined;
   dispose(): undefined;
 }
 
 export interface OpenJtalkConstructor {
   new (): never;
-  create(dictDir: string | URL): OpenJtalk;
+  create(dictDir: string | URL): Promise<OpenJtalk>;
+  createSync(dictDir: string | URL): OpenJtalk;
   readonly prototype: OpenJtalk;
 }
 
@@ -224,8 +226,10 @@ export interface UserDict extends Disposable {
   ): undefined;
   deleteWord(id: Uint8Array): undefined;
   importFrom(other: UserDict): undefined;
-  save(path: string | URL): undefined;
-  load(path: string | URL): undefined;
+  save(path: string | URL): Promise<undefined>;
+  saveSync(path: string | URL): undefined;
+  load(path: string | URL): Promise<undefined>;
+  loadSync(path: string | URL): undefined;
   toJSON(): unknown;
   dispose(): undefined;
 }
@@ -524,7 +528,9 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
   const lib = DynamicLibrary.open(libraryPath, symbols);
   const {
     voicevox_open_jtalk_rc_new,
+    voicevox_open_jtalk_rc_new_async,
     voicevox_open_jtalk_rc_use_user_dict,
+    voicevox_open_jtalk_rc_use_user_dict_async,
     voicevox_open_jtalk_rc_delete,
     voicevox_make_default_initialize_options,
     voicevox_get_version,
@@ -570,12 +576,14 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     voicevox_user_dict_word_make,
     voicevox_user_dict_new,
     voicevox_user_dict_load,
+    voicevox_user_dict_load_async,
     voicevox_user_dict_add_word,
     voicevox_user_dict_update_word,
     voicevox_user_dict_remove_word,
     voicevox_user_dict_to_json,
     voicevox_user_dict_import,
     voicevox_user_dict_save,
+    voicevox_user_dict_save_async,
     voicevox_user_dict_delete,
   } = lib.symbols;
   const unwrap = (code: number, context: string) => {
@@ -633,16 +641,15 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       openJtalk: OpenJtalk,
       options?: SynthesizerOptions,
     ): Synthesizer {
+      const openJtalkHandle = openJtalkGetHandle(openJtalk);
+      const optionsStruct = voicevox_make_default_initialize_options();
+      if (options !== undefined) {
+        synthesizerOptionsToStruct(optionsStruct, options);
+      }
       unwrap(
         voicevox_synthesizer_new(
-          openJtalkGetHandle(openJtalk).raw,
-          (() => {
-            const struct = voicevox_make_default_initialize_options();
-            if (options !== undefined) {
-              synthesizerOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          openJtalkHandle.raw,
+          optionsStruct,
           syncPtrBuf,
         ),
         "voicevox_synthesizer_new",
@@ -676,33 +683,35 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     async loadModel(model: VoiceModel): Promise<undefined> {
+      const thisHandle = synthesizerGetHandle(this);
+      const modelHandle = voiceModelGetHandle(model);
       unwrap(
         await voicevox_synthesizer_load_voice_model_async(
-          synthesizerGetHandle(this).raw,
-          voiceModelGetHandle(model).raw,
+          thisHandle.raw,
+          modelHandle.raw,
         ),
         "voicevox_synthesizer_load_voice_model",
       );
+      livenessBarrier(thisHandle);
+      livenessBarrier(modelHandle);
       this.#cachedSpeakers = undefined;
     }
 
     loadModelSync(model: VoiceModel): undefined {
+      const thisHandle = synthesizerGetHandle(this);
+      const modelHandle = voiceModelGetHandle(model);
       unwrap(
-        voicevox_synthesizer_load_voice_model(
-          synthesizerGetHandle(this).raw,
-          voiceModelGetHandle(model).raw,
-        ),
+        voicevox_synthesizer_load_voice_model(thisHandle.raw, modelHandle.raw),
         "voicevox_synthesizer_load_voice_model",
       );
       this.#cachedSpeakers = undefined;
     }
 
     unloadModel(modelId: string): undefined {
+      const thisHandle = synthesizerGetHandle(this);
+      const modelIdBuf = encodeCString(modelId);
       unwrap(
-        voicevox_synthesizer_unload_voice_model(
-          synthesizerGetHandle(this).raw,
-          encodeCString(modelId),
-        ),
+        voicevox_synthesizer_unload_voice_model(thisHandle.raw, modelIdBuf),
         "voicevox_synthesizer_unload_voice_model",
       );
       this.#cachedSpeakers = undefined;
@@ -720,26 +729,26 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       text: string,
       options?: TtsOptions,
     ): Promise<Uint8Array> {
+      const thisHandle = synthesizerGetHandle(this);
+      const textBuf = encodeCString(text);
+      const optionsStruct = voicevox_make_default_tts_options();
+      if (options !== undefined) {
+        ttsOptionsToStruct(optionsStruct, options);
+      }
       const ptrCell = new BigUint64Array(1);
       const lenCell = new BigUint64Array(1);
-      const textBuf = encodeCString(text);
       unwrap(
         await voicevox_synthesizer_tts_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           textBuf,
           voiceId,
-          (() => {
-            const struct = voicevox_make_default_tts_options();
-            if (options !== undefined) {
-              ttsOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          optionsStruct,
           lenCell,
           ptrCell,
         ),
         "voicevox_synthesizer_tts",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(textBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       const len = Number(lenCell[0]);
@@ -754,18 +763,18 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     ttsSync(voiceId: number, text: string, options?: TtsOptions): Uint8Array {
+      const thisHandle = synthesizerGetHandle(this);
+      const textBuf = encodeCString(text);
+      const optionsStruct = voicevox_make_default_tts_options();
+      if (options !== undefined) {
+        ttsOptionsToStruct(optionsStruct, options);
+      }
       unwrap(
         voicevox_synthesizer_tts(
-          synthesizerGetHandle(this).raw,
-          encodeCString(text),
+          thisHandle.raw,
+          textBuf,
           voiceId,
-          (() => {
-            const struct = voicevox_make_default_tts_options();
-            if (options !== undefined) {
-              ttsOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          optionsStruct,
           syncLenBuf,
           syncPtrBuf,
         ),
@@ -788,26 +797,26 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       kana: string,
       options?: TtsOptions,
     ): Promise<Uint8Array> {
+      const thisHandle = synthesizerGetHandle(this);
+      const kanaBuf = encodeCString(kana);
+      const optionsStruct = voicevox_make_default_tts_options();
+      if (options !== undefined) {
+        ttsOptionsToStruct(optionsStruct, options);
+      }
       const ptrCell = new BigUint64Array(1);
       const lenCell = new BigUint64Array(1);
-      const kanaBuf = encodeCString(kana);
       unwrap(
         await voicevox_synthesizer_tts_from_kana_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           kanaBuf,
           voiceId,
-          (() => {
-            const struct = voicevox_make_default_tts_options();
-            if (options !== undefined) {
-              ttsOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          optionsStruct,
           lenCell,
           ptrCell,
         ),
         "voicevox_synthesizer_tts_from_kana",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(kanaBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       const len = Number(lenCell[0]);
@@ -826,18 +835,18 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       kana: string,
       options?: TtsOptions,
     ): Uint8Array {
+      const thisHandle = synthesizerGetHandle(this);
+      const kanaBuf = encodeCString(kana);
+      const optionsStruct = voicevox_make_default_tts_options();
+      if (options !== undefined) {
+        ttsOptionsToStruct(optionsStruct, options);
+      }
       unwrap(
         voicevox_synthesizer_tts_from_kana(
-          synthesizerGetHandle(this).raw,
-          encodeCString(kana),
+          thisHandle.raw,
+          kanaBuf,
           voiceId,
-          (() => {
-            const struct = voicevox_make_default_tts_options();
-            if (options !== undefined) {
-              ttsOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          optionsStruct,
           syncLenBuf,
           syncPtrBuf,
         ),
@@ -859,26 +868,27 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       utterance: Utterance,
       options?: SynthesisOptions,
     ): Promise<Uint8Array> {
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(JSON.stringify(utteranceToJson(utterance)));
+      const voiceId = utterance.voiceId;
+      const optionsStruct = voicevox_make_default_synthesis_options();
+      if (options !== undefined) {
+        synthesisOptionsToStruct(optionsStruct, options);
+      }
       const ptrCell = new BigUint64Array(1);
       const lenCell = new BigUint64Array(1);
-      const jsonBuf = encodeCString(JSON.stringify(utteranceToJson(utterance)));
       unwrap(
         await voicevox_synthesizer_synthesis_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           jsonBuf,
-          utterance.voiceId,
-          (() => {
-            const struct = voicevox_make_default_synthesis_options();
-            if (options !== undefined) {
-              synthesisOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          voiceId,
+          optionsStruct,
           lenCell,
           ptrCell,
         ),
         "voicevox_synthesizer_synthesis",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(jsonBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       const len = Number(lenCell[0]);
@@ -893,18 +903,19 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     speakSync(utterance: Utterance, options?: SynthesisOptions): Uint8Array {
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(JSON.stringify(utteranceToJson(utterance)));
+      const voiceId = utterance.voiceId;
+      const optionsStruct = voicevox_make_default_synthesis_options();
+      if (options !== undefined) {
+        synthesisOptionsToStruct(optionsStruct, options);
+      }
       unwrap(
         voicevox_synthesizer_synthesis(
-          synthesizerGetHandle(this).raw,
-          encodeCString(JSON.stringify(utteranceToJson(utterance))),
-          utterance.voiceId,
-          (() => {
-            const struct = voicevox_make_default_synthesis_options();
-            if (options !== undefined) {
-              synthesisOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
+          thisHandle.raw,
+          jsonBuf,
+          voiceId,
+          optionsStruct,
           syncLenBuf,
           syncPtrBuf,
         ),
@@ -926,17 +937,19 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       text: string,
     ): Promise<CreateUtteranceResult> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const textBuf = encodeCString(text);
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_create_audio_query_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           textBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_create_audio_query",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(textBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -952,10 +965,12 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     createUtteranceSync(voiceId: number, text: string): CreateUtteranceResult {
+      const thisHandle = synthesizerGetHandle(this);
+      const textBuf = encodeCString(text);
       unwrap(
         voicevox_synthesizer_create_audio_query(
-          synthesizerGetHandle(this).raw,
-          encodeCString(text),
+          thisHandle.raw,
+          textBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -978,17 +993,19 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       kana: string,
     ): Promise<CreateUtteranceResult> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const kanaBuf = encodeCString(kana);
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_create_audio_query_from_kana_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           kanaBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_create_audio_query_from_kana",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(kanaBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -1007,10 +1024,12 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       kana: string,
     ): CreateUtteranceResult {
+      const thisHandle = synthesizerGetHandle(this);
+      const kanaBuf = encodeCString(kana);
       unwrap(
         voicevox_synthesizer_create_audio_query_from_kana(
-          synthesizerGetHandle(this).raw,
-          encodeCString(kana),
+          thisHandle.raw,
+          kanaBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -1033,17 +1052,19 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       text: string,
     ): Promise<AccentPhrase[]> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const textBuf = encodeCString(text);
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_create_accent_phrases_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           textBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_create_accent_phrases",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(textBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -1058,10 +1079,12 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     createAccentPhrasesSync(voiceId: number, text: string): AccentPhrase[] {
+      const thisHandle = synthesizerGetHandle(this);
+      const textBuf = encodeCString(text);
       unwrap(
         voicevox_synthesizer_create_accent_phrases(
-          synthesizerGetHandle(this).raw,
-          encodeCString(text),
+          thisHandle.raw,
+          textBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -1083,17 +1106,19 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       kana: string,
     ): Promise<AccentPhrase[]> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const kanaBuf = encodeCString(kana);
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_create_accent_phrases_from_kana_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           kanaBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_create_accent_phrases_from_kana",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(kanaBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -1111,10 +1136,12 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       kana: string,
     ): AccentPhrase[] {
+      const thisHandle = synthesizerGetHandle(this);
+      const kanaBuf = encodeCString(kana);
       unwrap(
         voicevox_synthesizer_create_accent_phrases_from_kana(
-          synthesizerGetHandle(this).raw,
-          encodeCString(kana),
+          thisHandle.raw,
+          kanaBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -1136,19 +1163,21 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       accentPhrases: AccentPhrase[],
     ): Promise<AccentPhrase[]> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
         JSON.stringify(accentPhrases.map(accentPhraseToJson)),
       );
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_replace_mora_data_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           jsonBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_replace_mora_data",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(jsonBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -1166,10 +1195,14 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       accentPhrases: AccentPhrase[],
     ): AccentPhrase[] {
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(
+        JSON.stringify(accentPhrases.map(accentPhraseToJson)),
+      );
       unwrap(
         voicevox_synthesizer_replace_mora_data(
-          synthesizerGetHandle(this).raw,
-          encodeCString(JSON.stringify(accentPhrases.map(accentPhraseToJson))),
+          thisHandle.raw,
+          jsonBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -1191,19 +1224,21 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       accentPhrases: AccentPhrase[],
     ): Promise<AccentPhrase[]> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
         JSON.stringify(accentPhrases.map(accentPhraseToJson)),
       );
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_replace_phoneme_length_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           jsonBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_replace_phoneme_length",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(jsonBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -1221,10 +1256,14 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       accentPhrases: AccentPhrase[],
     ): AccentPhrase[] {
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(
+        JSON.stringify(accentPhrases.map(accentPhraseToJson)),
+      );
       unwrap(
         voicevox_synthesizer_replace_phoneme_length(
-          synthesizerGetHandle(this).raw,
-          encodeCString(JSON.stringify(accentPhrases.map(accentPhraseToJson))),
+          thisHandle.raw,
+          jsonBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -1246,19 +1285,21 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       accentPhrases: AccentPhrase[],
     ): Promise<AccentPhrase[]> {
-      const ptrCell = new BigUint64Array(1);
+      const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
         JSON.stringify(accentPhrases.map(accentPhraseToJson)),
       );
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_synthesizer_replace_mora_pitch_async(
-          synthesizerGetHandle(this).raw,
+          thisHandle.raw,
           jsonBuf,
           voiceId,
           ptrCell,
         ),
         "voicevox_synthesizer_replace_mora_pitch",
       );
+      livenessBarrier(thisHandle);
       livenessBarrier(jsonBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       let json: string;
@@ -1276,10 +1317,14 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       voiceId: number,
       accentPhrases: AccentPhrase[],
     ): AccentPhrase[] {
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(
+        JSON.stringify(accentPhrases.map(accentPhraseToJson)),
+      );
       unwrap(
         voicevox_synthesizer_replace_mora_pitch(
-          synthesizerGetHandle(this).raw,
-          encodeCString(JSON.stringify(accentPhrases.map(accentPhraseToJson))),
+          thisHandle.raw,
+          jsonBuf,
           voiceId,
           syncPtrBuf,
         ),
@@ -1328,8 +1373,8 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     #cachedSpeakers?: Speakers;
 
     static async fromFile(path: string | URL): Promise<VoiceModel> {
-      const ptrCell = new BigUint64Array(1);
       const pathBuf = encodeCString(asPath(path));
+      const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_voice_model_new_from_path_async(pathBuf, ptrCell),
         "voicevox_voice_model_new_from_path",
@@ -1342,11 +1387,9 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     static fromFileSync(path: string | URL): VoiceModel {
+      const pathBuf = encodeCString(asPath(path));
       unwrap(
-        voicevox_voice_model_new_from_path(
-          encodeCString(asPath(path)),
-          syncPtrBuf,
-        ),
+        voicevox_voice_model_new_from_path(pathBuf, syncPtrBuf),
         "voicevox_voice_model_new_from_path",
       );
       return new VoiceModelImpl(
@@ -1399,9 +1442,24 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
   let openJtalkGetHandle: (o: OpenJtalk) => OpenJtalkRcHandle;
 
   class OpenJtalkImpl implements OpenJtalk {
-    static create(dictDir: string | URL): OpenJtalk {
+    static async create(dictDir: string | URL): Promise<OpenJtalk> {
+      const dictDirBuf = encodeCString(asPath(dictDir));
+      const ptrCell = new BigUint64Array(1);
       unwrap(
-        voicevox_open_jtalk_rc_new(encodeCString(asPath(dictDir)), syncPtrBuf),
+        await voicevox_open_jtalk_rc_new_async(dictDirBuf, ptrCell),
+        "voicevox_open_jtalk_rc_new",
+      );
+      livenessBarrier(dictDirBuf);
+      return new OpenJtalkImpl(
+        illegalConstructorKey,
+        new OpenJtalkRcHandle(Pointer.create(ptrCell[0])),
+      );
+    }
+
+    static createSync(dictDir: string | URL): OpenJtalk {
+      const dictDirBuf = encodeCString(asPath(dictDir));
+      unwrap(
+        voicevox_open_jtalk_rc_new(dictDirBuf, syncPtrBuf),
         "voicevox_open_jtalk_rc_new",
       );
       return new OpenJtalkImpl(
@@ -1410,11 +1468,27 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       );
     }
 
-    useUserDict(userDict: UserDict): undefined {
+    async useUserDict(userDict: UserDict): Promise<undefined> {
+      const thisHandle = openJtalkGetHandle(this);
+      const userDictHandle = userDictGetHandle(userDict);
+      unwrap(
+        await voicevox_open_jtalk_rc_use_user_dict_async(
+          thisHandle.raw,
+          userDictHandle.raw,
+        ),
+        "voicevox_open_jtalk_rc_use_user_dict",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(userDictHandle);
+    }
+
+    useUserDictSync(userDict: UserDict): undefined {
+      const thisHandle = openJtalkGetHandle(this);
+      const userDictHandle = userDictGetHandle(userDict);
       unwrap(
         voicevox_open_jtalk_rc_use_user_dict(
-          openJtalkGetHandle(this).raw,
-          userDictGetHandle(userDict).raw,
+          thisHandle.raw,
+          userDictHandle.raw,
         ),
         "voicevox_open_jtalk_rc_use_user_dict",
       );
@@ -1458,24 +1532,19 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       pronunciation: string,
       options?: WordOptions,
     ): Uint8Array {
+      const thisHandle = userDictGetHandle(this);
       const textBuf = encodeCString(text);
       const pronunciationBuf = encodeCString(pronunciation);
+      const wordStruct = voicevox_user_dict_word_make(
+        textBuf,
+        pronunciationBuf,
+      );
+      if (options !== undefined) {
+        wordOptionsToStruct(wordStruct, options);
+      }
       const id = new Uint8Array(16);
       unwrap(
-        voicevox_user_dict_add_word(
-          userDictGetHandle(this).raw,
-          (() => {
-            const struct = voicevox_user_dict_word_make(
-              textBuf,
-              pronunciationBuf,
-            );
-            if (options !== undefined) {
-              wordOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
-          id,
-        ),
+        voicevox_user_dict_add_word(thisHandle.raw, wordStruct, id),
         "voicevox_user_dict_add_word",
       );
       livenessBarrier(textBuf);
@@ -1489,26 +1558,21 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       pronunciation: string,
       options?: WordOptions,
     ): undefined {
+      const thisHandle = userDictGetHandle(this);
       if (id.length !== 16) {
         throw new TypeError("Length of word ID must be 16");
       }
       const textBuf = encodeCString(text);
       const pronunciationBuf = encodeCString(pronunciation);
+      const wordStruct = voicevox_user_dict_word_make(
+        textBuf,
+        pronunciationBuf,
+      );
+      if (options !== undefined) {
+        wordOptionsToStruct(wordStruct, options);
+      }
       unwrap(
-        voicevox_user_dict_update_word(
-          userDictGetHandle(this).raw,
-          id,
-          (() => {
-            const struct = voicevox_user_dict_word_make(
-              textBuf,
-              pronunciationBuf,
-            );
-            if (options !== undefined) {
-              wordOptionsToStruct(struct, options);
-            }
-            return struct;
-          })(),
-        ),
+        voicevox_user_dict_update_word(thisHandle.raw, id, wordStruct),
         "voicevox_user_dict_update_word",
       );
       livenessBarrier(textBuf);
@@ -1516,45 +1580,66 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     deleteWord(id: Uint8Array): undefined {
+      const thisHandle = userDictGetHandle(this);
       unwrap(
-        voicevox_user_dict_remove_word(userDictGetHandle(this).raw, id),
+        voicevox_user_dict_remove_word(thisHandle.raw, id),
         "voicevox_user_dict_remove_word",
       );
     }
 
     importFrom(other: UserDict): undefined {
+      const thisHandle = userDictGetHandle(this);
+      const otherHandle = userDictGetHandle(other);
       unwrap(
-        voicevox_user_dict_import(
-          userDictGetHandle(this).raw,
-          userDictGetHandle(other).raw,
-        ),
+        voicevox_user_dict_import(thisHandle.raw, otherHandle.raw),
         "voicevox_user_dict_import",
       );
     }
 
-    save(path: string | URL): undefined {
+    async save(path: string | URL): Promise<undefined> {
+      const thisHandle = userDictGetHandle(this);
+      const pathBuf = encodeCString(asPath(path));
       unwrap(
-        voicevox_user_dict_save(
-          userDictGetHandle(this).raw,
-          encodeCString(asPath(path)),
-        ),
+        await voicevox_user_dict_save_async(thisHandle.raw, pathBuf),
+        "voicevox_user_dict_save",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(pathBuf);
+    }
+
+    saveSync(path: string | URL): undefined {
+      const thisHandle = userDictGetHandle(this);
+      const pathBuf = encodeCString(asPath(path));
+      unwrap(
+        voicevox_user_dict_save(thisHandle.raw, pathBuf),
         "voicevox_user_dict_save",
       );
     }
 
-    load(path: string | URL): undefined {
+    async load(path: string | URL): Promise<undefined> {
+      const thisHandle = userDictGetHandle(this);
+      const pathBuf = encodeCString(asPath(path));
       unwrap(
-        voicevox_user_dict_load(
-          userDictGetHandle(this).raw,
-          encodeCString(asPath(path)),
-        ),
+        await voicevox_user_dict_load_async(thisHandle.raw, pathBuf),
+        "voicevox_user_dict_load",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(pathBuf);
+    }
+
+    loadSync(path: string | URL): undefined {
+      const thisHandle = userDictGetHandle(this);
+      const pathBuf = encodeCString(asPath(path));
+      unwrap(
+        voicevox_user_dict_load(thisHandle.raw, pathBuf),
         "voicevox_user_dict_load",
       );
     }
 
     toJSON(): unknown {
+      const thisHandle = userDictGetHandle(this);
       unwrap(
-        voicevox_user_dict_to_json(userDictGetHandle(this).raw, syncPtrBuf),
+        voicevox_user_dict_to_json(thisHandle.raw, syncPtrBuf),
         "voicevox_user_dict_to_json",
       );
       const ptr = Pointer.create(syncPtrCell[0])!;
