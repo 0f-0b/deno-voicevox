@@ -1,18 +1,19 @@
-import { assert } from "../deps/std/assert/assert.ts";
-import { assertRejects } from "../deps/std/assert/assert_rejects.ts";
-import { assertStrictEquals } from "../deps/std/assert/assert_strict_equals.ts";
-import { fromFileUrl } from "../deps/std/path/from_file_url.ts";
-import { join } from "../deps/std/path/join.ts";
+import { assert } from "@std/assert/assert";
+import { assertRejects } from "@std/assert/assert_rejects";
+import { assertStrictEquals } from "@std/assert/assert_strict_equals";
+import { fromFileUrl } from "@std/path/from_file_url";
+import { join } from "@std/path/join";
 
 async function exists(path: string | URL): Promise<boolean> {
   try {
     await Deno.lstat(path);
+    return true;
   } catch (e: unknown) {
     if (e instanceof Deno.errors.NotFound) {
       return false;
     }
+    throw e;
   }
-  return true;
 }
 
 const root = fromFileUrl(new URL("..", import.meta.url));

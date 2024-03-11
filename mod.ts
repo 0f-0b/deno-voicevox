@@ -1,4 +1,4 @@
-import { fromFileUrl } from "./deps/std/path/from_file_url.ts";
+import { fromFileUrl } from "@std/path/from_file_url";
 
 import {
   createManagedPointerClass,
@@ -462,11 +462,11 @@ function synthesizerOptionsToStruct(
   value: SynthesizerOptions,
 ): undefined {
   const view = asView(struct);
-  const accelerationMode = value.accelerationMode;
+  const { accelerationMode } = value;
   if (accelerationMode !== undefined) {
     view.setInt32(0, accelerationModeToInt(accelerationMode), littleEndian);
   }
-  const numThreads = value.numThreads;
+  const { numThreads } = value;
   if (numThreads !== undefined) {
     view.setUint16(4, numThreads, littleEndian);
   }
@@ -474,7 +474,7 @@ function synthesizerOptionsToStruct(
 
 function ttsOptionsToStruct(struct: Uint8Array, value: TtsOptions): undefined {
   const view = asView(struct);
-  const enableInterrogativeUpspeak = value.enableInterrogativeUpspeak;
+  const { enableInterrogativeUpspeak } = value;
   if (enableInterrogativeUpspeak !== undefined) {
     view.setUint8(0, enableInterrogativeUpspeak ? 1 : 0);
   }
@@ -485,7 +485,7 @@ function synthesisOptionsToStruct(
   value: SynthesisOptions,
 ): undefined {
   const view = asView(struct);
-  const enableInterrogativeUpspeak = value.enableInterrogativeUpspeak;
+  const { enableInterrogativeUpspeak } = value;
   if (enableInterrogativeUpspeak !== undefined) {
     view.setUint8(0, enableInterrogativeUpspeak ? 1 : 0);
   }
@@ -496,15 +496,15 @@ function wordOptionsToStruct(
   value: WordOptions,
 ): undefined {
   const view = asView(struct);
-  const accentType = value.accentType;
+  const { accentType } = value;
   if (accentType !== undefined) {
     view.setBigUint64(16, BigInt(accentType), littleEndian);
   }
-  const partOfSpeech = value.partOfSpeech;
+  const { partOfSpeech } = value;
   if (partOfSpeech !== undefined) {
     view.setInt32(24, partOfSpeechToInt(partOfSpeech), littleEndian);
   }
-  const priority = value.priority;
+  const { priority } = value;
   if (priority !== undefined) {
     view.setUint32(28, priority, littleEndian);
   }

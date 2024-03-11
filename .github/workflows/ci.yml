@@ -1,0 +1,25 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: 1
+      - name: Lint
+        run: deno task lint
+      - name: Test
+        run: deno task test --no-run
+      - name: Publish (dry run)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: deno publish --dry-run
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/')
+        run: deno publish
