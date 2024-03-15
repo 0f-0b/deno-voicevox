@@ -50,7 +50,7 @@ export interface Phoneme {
 
 export interface Mora {
   text: string;
-  consonant?: Phoneme;
+  consonant?: Phoneme | undefined;
   vowel: Phoneme;
   pitch: number;
 }
@@ -58,8 +58,8 @@ export interface Mora {
 export interface AccentPhrase {
   moras: Mora[];
   accent: number;
-  pause?: Mora;
-  interrogative?: boolean;
+  pause?: Mora | undefined;
+  interrogative?: boolean | undefined;
 }
 
 export interface Utterance {
@@ -291,8 +291,8 @@ interface SpeakerJson {
 
 interface MoraJson {
   text: string;
-  consonant?: string | null;
-  consonant_length?: number | null;
+  consonant?: string | null | undefined;
+  consonant_length?: number | null | undefined;
   vowel: string;
   vowel_length: number;
   pitch: number;
@@ -301,8 +301,8 @@ interface MoraJson {
 interface AccentPhraseJson {
   moras: MoraJson[];
   accent: number;
-  pause_mora?: MoraJson | null;
-  is_interrogative?: boolean;
+  pause_mora?: MoraJson | null | undefined;
+  is_interrogative?: boolean | undefined;
 }
 
 interface AudioQueryJson {
@@ -615,7 +615,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
   let synthesizerGetHandle: (o: Synthesizer) => SynthesizerHandle;
 
   class SynthesizerImpl implements Synthesizer {
-    #cachedSpeakers?: Speakers;
+    #cachedSpeakers: Speakers | undefined;
 
     static get supportedDevices(): SupportedDevices {
       if (!cachedSupportedDevices) {
@@ -1370,7 +1370,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
   class VoiceModelImpl implements VoiceModel {
     readonly #id: string;
-    #cachedSpeakers?: Speakers;
+    #cachedSpeakers: Speakers | undefined;
 
     static async fromFile(path: string | URL): Promise<VoiceModel> {
       const pathBuf = encodeCString(asPath(path));

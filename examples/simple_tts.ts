@@ -24,7 +24,7 @@ if (Deno.args.length !== 1) {
   console.log("Usage: ./simple_tts.ts <text>");
   Deno.exit(2);
 }
-const text = Deno.args[0];
+const [text] = Deno.args;
 const { Synthesizer, VoiceModel, OpenJtalk, unload } = load(dynamicLibPath);
 try {
   console.log("Initializing…");

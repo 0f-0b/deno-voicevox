@@ -6,6 +6,10 @@
     "@std/assert": "jsr:@std/assert@^0.219.1",
     "@std/path": "jsr:@std/path@^0.219.1"
   },
+  "compilerOptions": {
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true
+  },
   "publish": {
     "exclude": [
       ".gitattributes",

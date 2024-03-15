@@ -109,7 +109,7 @@ export function createManagedPointerClass<Brand>(
   const finalizer = new FinalizationRegistry(drop);
   return class ManagedPointer {
     declare readonly [brand]: Brand;
-    #raw?: Pointer;
+    #raw: Pointer | undefined;
 
     constructor(raw: Pointer) {
       this.#raw = raw;
