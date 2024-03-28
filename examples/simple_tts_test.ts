@@ -1,7 +1,7 @@
 import { assert } from "@std/assert/assert";
-import { assertRejects } from "@std/assert/assert_rejects";
-import { assertStrictEquals } from "@std/assert/assert_strict_equals";
-import { fromFileUrl } from "@std/path/from_file_url";
+import { assertRejects } from "@std/assert/assert-rejects";
+import { assertStrictEquals } from "@std/assert/assert-strict-equals";
+import { fromFileUrl } from "@std/path/from-file-url";
 import { join } from "@std/path/join";
 
 async function exists(path: string | URL): Promise<boolean> {

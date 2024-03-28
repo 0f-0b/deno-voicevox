@@ -1,4 +1,4 @@
-import { fromFileUrl } from "@std/path/from_file_url";
+import { fromFileUrl } from "@std/path/from-file-url";
 
 import {
   createManagedPointerClass,
