@@ -14,7 +14,6 @@
     "exclude": [
       ".gitattributes",
       ".github",
-      ".vscode",
       "deno.lock",
       "**/test.ts",
       "**/*_test.ts",
