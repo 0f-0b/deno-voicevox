@@ -23,13 +23,14 @@ const entryPoint = join(
   Deno.build.os === "windows" ? "simple_tts_wrapper.cmd" : "simple_tts.ts",
 );
 const outputWavPath = join(root, "audio.wav");
-const permissions: Deno.PermissionOptions = {
-  read: [outputWavPath],
-  write: [outputWavPath],
-  run: [entryPoint],
-};
 
-Deno.test("simple tts", { permissions }, async (t) => {
+Deno.test("simple_tts", {
+  permissions: {
+    read: [outputWavPath],
+    write: [outputWavPath],
+    run: [entryPoint],
+  },
+}, async (t) => {
   if (await exists(outputWavPath)) {
     throw new TypeError("Aborting test to avoid overwriting 'audio.wav'");
   }

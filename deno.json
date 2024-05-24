@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "exports": "./mod.ts",
   "imports": {
-    "@std/assert": "jsr:@std/assert@^0.221.0",
-    "@std/path": "jsr:@std/path@^0.221.0"
+    "@std/assert": "jsr:@std/assert@^0.225.3",
+    "@std/path": "jsr:@std/path@^0.225.1"
   },
   "compilerOptions": {
     "noImplicitOverride": true,
@@ -21,6 +21,7 @@
     ]
   },
   "tasks": {
+    "cache": "deno cache examples/simple_tts.ts",
     "lint": "deno fmt --check && deno lint && deno check --all examples/simple_tts.ts",
     "test": "deno test --unstable-ffi --check=all --allow-read --allow-write --allow-run=./examples/simple_tts.ts,./examples/simple_tts_wrapper.cmd --allow-ffi"
   }

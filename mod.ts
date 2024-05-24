@@ -10,6 +10,7 @@ import {
   Pointer,
   PointerView,
 } from "./ffi.ts";
+import { uuidFromBytes, uuidToBytes } from "./uuid.ts";
 import symbols from "./voicevox_core.h.ts";
 
 export class VoicevoxError extends Error {
@@ -22,15 +23,20 @@ export class VoicevoxError extends Error {
   }
 }
 
+export type VoiceModelType = "talk" | "singing teacher" | "frame decode";
+
 export interface Voice {
   readonly style: string;
   readonly id: number;
+  readonly modelTypes: readonly VoiceModelType[];
+  readonly order: number | null;
 }
 
 export interface Speaker {
   readonly name: string;
   readonly version: string;
   readonly voices: readonly Voice[];
+  readonly order: number | null;
 }
 
 export interface Speakers {
@@ -213,18 +219,14 @@ export interface WordOptions {
 }
 
 export interface UserDict extends Disposable {
-  addWord(
-    text: string,
-    pronunciation: string,
-    options?: WordOptions,
-  ): Uint8Array;
+  addWord(text: string, pronunciation: string, options?: WordOptions): string;
   updateWord(
-    id: Uint8Array,
+    id: string,
     text: string,
     pronunciation: string,
     options?: WordOptions,
   ): undefined;
-  deleteWord(id: Uint8Array): undefined;
+  deleteWord(id: string): undefined;
   importFrom(other: UserDict): undefined;
   save(path: string | URL): Promise<undefined>;
   saveSync(path: string | URL): undefined;
@@ -282,11 +284,21 @@ interface SupportedDevicesJson {
   dml: boolean;
 }
 
+type StyleTypeJson = "talk" | "singing_teacher" | "frame_decode" | "sing";
+
+interface StyleJson {
+  id: number;
+  name: string;
+  type: StyleTypeJson;
+  order: number | null;
+}
+
 interface SpeakerJson {
   name: string;
-  styles: { name: string; id: number }[];
-  speaker_uuid: string;
+  styles: StyleJson[];
   version: string;
+  speaker_uuid: string;
+  order: number | null;
 }
 
 interface MoraJson {
@@ -328,18 +340,38 @@ function supportedDevicesFromJson(
   });
 }
 
+function voiceModelTypesFromJson(
+  json: StyleTypeJson,
+): readonly VoiceModelType[] {
+  switch (json) {
+    case "talk":
+      return Object.freeze(["talk"]);
+    case "singing_teacher":
+      return Object.freeze(["singing teacher"]);
+    case "frame_decode":
+      return Object.freeze(["frame decode"]);
+    case "sing":
+      return Object.freeze(["singing teacher", "frame decode"]);
+  }
+}
+
+function voiceFromJson(json: StyleJson): Voice {
+  return Object.freeze({
+    style: json.name,
+    id: json.id,
+    modelTypes: voiceModelTypesFromJson(json.type),
+    order: json.order,
+  });
+}
+
 function speakersFromJson(json: readonly SpeakerJson[]): Speakers {
   return Object.freeze(Object.fromEntries(json.map((meta) => [
     meta.speaker_uuid,
     Object.freeze({
       name: meta.name,
       version: meta.version,
-      voices: Object.freeze(meta.styles.map((style) =>
-        Object.freeze({
-          style: style.name,
-          id: style.id,
-        })
-      )),
+      voices: Object.freeze(meta.styles.map(voiceFromJson)),
+      order: meta.order,
     }),
   ])));
 }
@@ -709,7 +741,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
     unloadModel(modelId: string): undefined {
       const thisHandle = synthesizerGetHandle(this);
-      const modelIdBuf = encodeCString(modelId);
+      const modelIdBuf = uuidToBytes(modelId);
       unwrap(
         voicevox_synthesizer_unload_voice_model(thisHandle.raw, modelIdBuf),
         "voicevox_synthesizer_unload_voice_model",
@@ -720,7 +752,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     isModelLoaded(modelId: string): boolean {
       return voicevox_synthesizer_is_loaded_voice_model(
         synthesizerGetHandle(this).raw,
-        encodeCString(modelId),
+        uuidToBytes(modelId),
       );
     }
 
@@ -1419,7 +1451,10 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     constructor(key: unknown = undefined, handle: VoiceModelHandle) {
       illegalConstructor(key);
       this.#handle = handle;
-      this.#id = PointerView.getCString(voicevox_voice_model_id(handle.raw)!);
+      const id = new Uint8Array(
+        PointerView.getArrayBuffer(voicevox_voice_model_id(handle.raw)!, 16),
+      );
+      this.#id = uuidFromBytes(id);
     }
 
     dispose(): undefined {
@@ -1531,7 +1566,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       text: string,
       pronunciation: string,
       options?: WordOptions,
-    ): Uint8Array {
+    ): string {
       const thisHandle = userDictGetHandle(this);
       const textBuf = encodeCString(text);
       const pronunciationBuf = encodeCString(pronunciation);
@@ -1549,19 +1584,17 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       );
       livenessBarrier(textBuf);
       livenessBarrier(pronunciationBuf);
-      return id;
+      return uuidFromBytes(id);
     }
 
     updateWord(
-      id: Uint8Array,
+      id: string,
       text: string,
       pronunciation: string,
       options?: WordOptions,
     ): undefined {
       const thisHandle = userDictGetHandle(this);
-      if (id.length !== 16) {
-        throw new TypeError("Length of word ID must be 16");
-      }
+      const idBuf = uuidToBytes(id);
       const textBuf = encodeCString(text);
       const pronunciationBuf = encodeCString(pronunciation);
       const wordStruct = voicevox_user_dict_word_make(
@@ -1572,17 +1605,18 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
         wordOptionsToStruct(wordStruct, options);
       }
       unwrap(
-        voicevox_user_dict_update_word(thisHandle.raw, id, wordStruct),
+        voicevox_user_dict_update_word(thisHandle.raw, idBuf, wordStruct),
         "voicevox_user_dict_update_word",
       );
       livenessBarrier(textBuf);
       livenessBarrier(pronunciationBuf);
     }
 
-    deleteWord(id: Uint8Array): undefined {
+    deleteWord(id: string): undefined {
       const thisHandle = userDictGetHandle(this);
+      const idBuf = uuidToBytes(id);
       unwrap(
-        voicevox_user_dict_remove_word(thisHandle.raw, id),
+        voicevox_user_dict_remove_word(thisHandle.raw, idBuf),
         "voicevox_user_dict_remove_word",
       );
     }
