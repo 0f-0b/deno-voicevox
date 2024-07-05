@@ -87,11 +87,11 @@ export interface CreateUtteranceResult {
 }
 
 export interface TtsOptions {
-  enableInterrogativeUpspeak?: boolean;
+  enableInterrogativeUpspeak?: boolean | undefined;
 }
 
 export interface SynthesisOptions {
-  enableInterrogativeUpspeak?: boolean;
+  enableInterrogativeUpspeak?: boolean | undefined;
 }
 
 export interface Synthesizer extends Disposable {
@@ -168,8 +168,8 @@ export interface Synthesizer extends Disposable {
 export type AccelerationMode = "auto" | "cpu" | "gpu";
 
 export interface SynthesizerOptions {
-  accelerationMode?: AccelerationMode;
-  numThreads?: number;
+  accelerationMode?: AccelerationMode | undefined;
+  numThreads?: number | undefined;
 }
 
 export interface SynthesizerConstructor {
@@ -213,9 +213,9 @@ export type PartOfSpeech =
   | "suffix";
 
 export interface WordOptions {
-  accentType?: number;
-  partOfSpeech?: PartOfSpeech;
-  priority?: number;
+  accentType?: number | undefined;
+  partOfSpeech?: PartOfSpeech | undefined;
+  priority?: number | undefined;
 }
 
 export interface UserDict extends Disposable {
@@ -265,6 +265,16 @@ function isSome<T>(value: T): value is NonNullable<T> {
 
 function asPath(pathOrURL: string | URL): string {
   return typeof pathOrURL === "string" ? pathOrURL : fromFileUrl(pathOrURL);
+}
+
+function encodePath(pathOrURL: string | URL): Uint8Array {
+  return encodeCString(asPath(pathOrURL));
+}
+
+function encodeOptionalPath(
+  pathOrURL: string | URL | undefined,
+): Uint8Array | undefined {
+  return pathOrURL === undefined ? undefined : encodePath(pathOrURL);
 }
 
 function asView(source: BufferSource): DataView {
@@ -327,7 +337,7 @@ interface AudioQueryJson {
   post_phoneme_length: number;
   output_sampling_rate: number;
   output_stereo: boolean;
-  kana?: string | null;
+  kana?: string;
 }
 
 function supportedDevicesFromJson(
@@ -555,10 +565,21 @@ declare const userDictHandleBrand: unique symbol;
 type UserDictHandleBrand = typeof userDictHandleBrand;
 type UserDictHandle = ManagedPointer<UserDictHandleBrand>;
 
+export interface LoadOptions {
+  onnxruntimePath?: string | undefined;
+}
+
 /** @tags allow-ffi */
-export function load(libraryPath: string | URL): VoicevoxCoreModule {
+export function load(
+  libraryPath: string | URL,
+  options?: LoadOptions,
+): VoicevoxCoreModule {
+  const onnxruntimePathBuf = encodeOptionalPath(options?.onnxruntimePath);
   const lib = DynamicLibrary.open(libraryPath, symbols);
   const {
+    voicevox_make_default_load_onnxruntime_options,
+    voicevox_onnxruntime_load_once,
+    voicevox_onnxruntime_init_once,
     voicevox_open_jtalk_rc_new,
     voicevox_open_jtalk_rc_new_async,
     voicevox_open_jtalk_rc_use_user_dict,
@@ -579,7 +600,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     voicevox_synthesizer_is_gpu_mode,
     voicevox_synthesizer_is_loaded_voice_model,
     voicevox_synthesizer_create_metas_json,
-    voicevox_create_supported_devices_json,
+    voicevox_onnxruntime_create_supported_devices_json,
     voicevox_synthesizer_create_audio_query_from_kana,
     voicevox_synthesizer_create_audio_query_from_kana_async,
     voicevox_synthesizer_create_audio_query,
@@ -631,6 +652,52 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     Error.captureStackTrace?.(error, unwrap);
     throw error;
   };
+  let onnxruntimeState:
+    | { state: "unloaded"; load: () => Pointer }
+    | { state: "loaded"; ptr: Pointer }
+    | { state: "errored"; reason: unknown } = {
+      state: "unloaded",
+      load: voicevox_onnxruntime_init_once
+        ? () => {
+          unwrap(
+            voicevox_onnxruntime_init_once(syncPtrBuf),
+            "voicevox_onnxruntime_init_once",
+          );
+          return Pointer.create(syncPtrCell[0]);
+        }
+        : () => {
+          const optionsStruct =
+            voicevox_make_default_load_onnxruntime_options!();
+          if (onnxruntimePathBuf) {
+            const view = asView(optionsStruct);
+            const ptr = Pointer.value(Pointer.of(onnxruntimePathBuf));
+            view.setBigUint64(0, ptr, littleEndian);
+          }
+          unwrap(
+            voicevox_onnxruntime_load_once!(optionsStruct, syncPtrBuf),
+            "voicevox_onnxruntime_load_once",
+          );
+          if (onnxruntimePathBuf) {
+            livenessBarrier(onnxruntimePathBuf);
+          }
+          return Pointer.create(syncPtrCell[0]);
+        },
+    };
+  const getOnnxruntime = () => {
+    if (onnxruntimeState.state === "unloaded") {
+      try {
+        onnxruntimeState = { state: "loaded", ptr: onnxruntimeState.load() };
+      } catch (e) {
+        onnxruntimeState = { state: "errored", reason: e };
+      }
+    }
+    switch (onnxruntimeState.state) {
+      case "loaded":
+        return onnxruntimeState.ptr;
+      case "errored":
+        throw onnxruntimeState.reason;
+    }
+  };
   const SynthesizerHandle = createManagedPointerClass<SynthesizerHandleBrand>(
     voicevox_synthesizer_delete,
   );
@@ -652,8 +719,11 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     static get supportedDevices(): SupportedDevices {
       if (!cachedSupportedDevices) {
         unwrap(
-          voicevox_create_supported_devices_json(syncPtrBuf)!,
-          "voicevox_create_supported_devices_json",
+          voicevox_onnxruntime_create_supported_devices_json(
+            getOnnxruntime(),
+            syncPtrBuf,
+          )!,
+          "voicevox_onnxruntime_create_supported_devices_json",
         );
         const ptr = Pointer.create(syncPtrCell[0])!;
         let json: string;
@@ -680,6 +750,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
       }
       unwrap(
         voicevox_synthesizer_new(
+          getOnnxruntime(),
           openJtalkHandle.raw,
           optionsStruct,
           syncPtrBuf,
@@ -1405,7 +1476,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     #cachedSpeakers: Speakers | undefined;
 
     static async fromFile(path: string | URL): Promise<VoiceModel> {
-      const pathBuf = encodeCString(asPath(path));
+      const pathBuf = encodePath(path);
       const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_voice_model_new_from_path_async(pathBuf, ptrCell),
@@ -1419,7 +1490,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     static fromFileSync(path: string | URL): VoiceModel {
-      const pathBuf = encodeCString(asPath(path));
+      const pathBuf = encodePath(path);
       unwrap(
         voicevox_voice_model_new_from_path(pathBuf, syncPtrBuf),
         "voicevox_voice_model_new_from_path",
@@ -1478,7 +1549,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
   class OpenJtalkImpl implements OpenJtalk {
     static async create(dictDir: string | URL): Promise<OpenJtalk> {
-      const dictDirBuf = encodeCString(asPath(dictDir));
+      const dictDirBuf = encodePath(dictDir);
       const ptrCell = new BigUint64Array(1);
       unwrap(
         await voicevox_open_jtalk_rc_new_async(dictDirBuf, ptrCell),
@@ -1492,7 +1563,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
     }
 
     static createSync(dictDir: string | URL): OpenJtalk {
-      const dictDirBuf = encodeCString(asPath(dictDir));
+      const dictDirBuf = encodePath(dictDir);
       unwrap(
         voicevox_open_jtalk_rc_new(dictDirBuf, syncPtrBuf),
         "voicevox_open_jtalk_rc_new",
@@ -1632,7 +1703,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
     async save(path: string | URL): Promise<undefined> {
       const thisHandle = userDictGetHandle(this);
-      const pathBuf = encodeCString(asPath(path));
+      const pathBuf = encodePath(path);
       unwrap(
         await voicevox_user_dict_save_async(thisHandle.raw, pathBuf),
         "voicevox_user_dict_save",
@@ -1643,7 +1714,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
     saveSync(path: string | URL): undefined {
       const thisHandle = userDictGetHandle(this);
-      const pathBuf = encodeCString(asPath(path));
+      const pathBuf = encodePath(path);
       unwrap(
         voicevox_user_dict_save(thisHandle.raw, pathBuf),
         "voicevox_user_dict_save",
@@ -1652,7 +1723,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
     async load(path: string | URL): Promise<undefined> {
       const thisHandle = userDictGetHandle(this);
-      const pathBuf = encodeCString(asPath(path));
+      const pathBuf = encodePath(path);
       unwrap(
         await voicevox_user_dict_load_async(thisHandle.raw, pathBuf),
         "voicevox_user_dict_load",
@@ -1663,7 +1734,7 @@ export function load(libraryPath: string | URL): VoicevoxCoreModule {
 
     loadSync(path: string | URL): undefined {
       const thisHandle = userDictGetHandle(this);
-      const pathBuf = encodeCString(asPath(path));
+      const pathBuf = encodePath(path);
       unwrap(
         voicevox_user_dict_load(thisHandle.raw, pathBuf),
         "voicevox_user_dict_load",

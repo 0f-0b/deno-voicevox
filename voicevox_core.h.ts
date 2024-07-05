@@ -3,6 +3,9 @@ import { generateAsyncVariants, type NativeType } from "./ffi.ts";
 export const VoicevoxAccelerationMode = "i32" satisfies NativeType;
 export const VoicevoxResultCode = "i32" satisfies NativeType;
 export const VoicevoxUserDictWordType = "i32" satisfies NativeType;
+export const VoicevoxLoadOnnxruntimeOptions = {
+  struct: ["pointer"],
+} satisfies NativeType;
 export const VoicevoxInitializeOptions = {
   struct: [VoicevoxAccelerationMode, "u16"],
 } satisfies NativeType;
@@ -16,6 +19,35 @@ export const VoicevoxUserDictWord = {
   struct: ["pointer", "pointer", "usize", VoicevoxUserDictWordType, "u32"],
 } satisfies NativeType;
 export default generateAsyncVariants({
+  voicevox_get_onnxruntime_lib_versioned_filename: {
+    parameters: [],
+    result: "pointer",
+    optional: true,
+  },
+  voicevox_get_onnxruntime_lib_unversioned_filename: {
+    parameters: [],
+    result: "pointer",
+    optional: true,
+  },
+  voicevox_make_default_load_onnxruntime_options: {
+    parameters: [],
+    result: VoicevoxLoadOnnxruntimeOptions,
+    optional: true,
+  },
+  voicevox_onnxruntime_get: {
+    parameters: [],
+    result: "pointer",
+  },
+  voicevox_onnxruntime_load_once: {
+    parameters: [VoicevoxLoadOnnxruntimeOptions, "buffer"],
+    result: VoicevoxResultCode,
+    optional: true,
+  },
+  voicevox_onnxruntime_init_once: {
+    parameters: ["buffer"],
+    result: VoicevoxResultCode,
+    optional: true,
+  },
   voicevox_open_jtalk_rc_new: {
     parameters: ["buffer", "buffer"],
     result: VoicevoxResultCode,
@@ -56,7 +88,7 @@ export default generateAsyncVariants({
     result: "void",
   },
   voicevox_synthesizer_new: {
-    parameters: ["pointer", VoicevoxInitializeOptions, "buffer"],
+    parameters: ["pointer", "pointer", VoicevoxInitializeOptions, "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_synthesizer_delete: {
@@ -72,6 +104,10 @@ export default generateAsyncVariants({
     parameters: ["pointer", "buffer"],
     result: VoicevoxResultCode,
   },
+  voicevox_synthesizer_get_onnxruntime: {
+    parameters: ["pointer"],
+    result: "pointer",
+  },
   voicevox_synthesizer_is_gpu_mode: {
     parameters: ["pointer"],
     result: "bool",
@@ -84,8 +120,8 @@ export default generateAsyncVariants({
     parameters: ["pointer"],
     result: "pointer",
   },
-  voicevox_create_supported_devices_json: {
-    parameters: ["buffer"],
+  voicevox_onnxruntime_create_supported_devices_json: {
+    parameters: ["pointer", "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_synthesizer_create_audio_query_from_kana: {

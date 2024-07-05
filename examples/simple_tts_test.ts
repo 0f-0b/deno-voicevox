@@ -1,6 +1,6 @@
 import { assert } from "@std/assert/assert";
-import { assertRejects } from "@std/assert/assert-rejects";
-import { assertStrictEquals } from "@std/assert/assert-strict-equals";
+import { assertRejects } from "@std/assert/rejects";
+import { assertStrictEquals } from "@std/assert/strict-equals";
 import { fromFileUrl } from "@std/path/from-file-url";
 import { join } from "@std/path/join";
 

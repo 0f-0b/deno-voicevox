@@ -1,5 +1,5 @@
-import { assertEquals } from "@std/assert/assert-equals";
-import { assertStrictEquals } from "@std/assert/assert-strict-equals";
+import { assertEquals } from "@std/assert/equals";
+import { assertStrictEquals } from "@std/assert/strict-equals";
 
 import { uuidFromBytes, uuidToBytes } from "./uuid.ts";
 
