@@ -2,10 +2,19 @@ type Merge<T, U> = Omit<T, keyof U> & U;
 type Contra<T> = (_: T) => unknown;
 export const Pointer: Omit<typeof Deno.UnsafePointer, "prototype"> =
   Deno.UnsafePointer;
-export type Pointer = Deno.PointerValue;
+export type Pointer<Brand = unknown> = Deno.PointerValue<Brand>;
 export const PointerView = Deno.UnsafePointerView;
 export type PointerView = Deno.UnsafePointerView;
 export type NativeType = Deno.NativeType | { readonly struct: [] };
+export type NativePointerType<Brand = unknown> = Deno.NativeTypedPointer<
+  Deno.PointerObject<Brand>
+>;
+export type NativeU8EnumType<T extends number> = Deno.NativeU8Enum<T>;
+export type NativeI8EnumType<T extends number> = Deno.NativeI8Enum<T>;
+export type NativeU16EnumType<T extends number> = Deno.NativeU16Enum<T>;
+export type NativeI16EnumType<T extends number> = Deno.NativeI16Enum<T>;
+export type NativeU32EnumType<T extends number> = Deno.NativeU32Enum<T>;
+export type NativeI32EnumType<T extends number> = Deno.NativeI32Enum<T>;
 export type NativeParams = readonly NativeType[] | [];
 export type NativeResult = Deno.NativeResultType;
 export type ForeignStatic = Deno.ForeignStatic;
@@ -80,7 +89,7 @@ export function generateAsyncVariants<
   ) as GenerateAsyncVariants<S>;
 }
 
-export function livenessBarrier(obj: object): undefined {
+export function livenessBarrier(obj: WeakKey): undefined {
   new WeakRef(obj);
 }
 
@@ -95,28 +104,29 @@ export function encodeCString(str: string): Uint8Array {
   return encoder.encode(str + "\0");
 }
 
-declare const brand: unique symbol;
-
 export interface ManagedPointer<Brand> {
-  readonly [brand]: Brand;
-  readonly raw: Pointer;
+  readonly raw: Pointer<Brand>;
   drop(): undefined;
 }
 
+export interface ManagedPointerConstructor<Brand> {
+  new (ptr: Pointer<Brand>): ManagedPointer<Brand>;
+  readonly prototype: ManagedPointer<Brand>;
+}
+
 export function createManagedPointerClass<Brand>(
-  drop: (ptr: Pointer) => unknown,
-): new (ptr: Pointer) => ManagedPointer<Brand> {
+  drop: (ptr: Pointer<Brand>) => unknown,
+): ManagedPointerConstructor<Brand> {
   const finalizer = new FinalizationRegistry(drop);
   return class ManagedPointer {
-    declare readonly [brand]: Brand;
-    #raw: Pointer | undefined;
+    #raw: Pointer<Brand> | undefined;
 
-    constructor(raw: Pointer) {
+    constructor(raw: Pointer<Brand>) {
       this.#raw = raw;
       finalizer.register(this, raw, this);
     }
 
-    get raw(): Pointer {
+    get raw(): Pointer<Brand> {
       if (this.#raw === undefined) {
         throw new ReferenceError("Object is disposed");
       }

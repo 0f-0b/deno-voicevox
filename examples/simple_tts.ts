@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --unstable-ffi --allow-write=audio.wav --allow-ffi
 
-import { load } from "../mod.ts";
+import { load } from "jsr:@ud2/deno-voicevox";
 
 function libNameByOS(base: string): string {
   switch (Deno.build.os) {

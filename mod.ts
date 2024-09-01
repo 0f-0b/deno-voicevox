@@ -11,7 +11,15 @@ import {
   PointerView,
 } from "./ffi.ts";
 import { uuidFromBytes, uuidToBytes } from "./uuid.ts";
-import symbols from "./voicevox_core.h.ts";
+import symbols, {
+  type OpenJtalkRc,
+  type VoicevoxAccelerationMode,
+  type VoicevoxOnnxruntime,
+  type VoicevoxSynthesizer,
+  type VoicevoxUserDict,
+  type VoicevoxUserDictWordType,
+  type VoicevoxVoiceModel,
+} from "./voicevox_core.h.ts";
 
 export class VoicevoxError extends Error {
   code: number;
@@ -465,7 +473,9 @@ function createUtteranceResultFromJson(
   };
 }
 
-function accelerationModeToInt(value: AccelerationMode): number {
+function accelerationModeToInt(
+  value: AccelerationMode,
+): VoicevoxAccelerationMode {
   switch (value) {
     case "auto":
       return 0;
@@ -480,7 +490,7 @@ function accelerationModeToInt(value: AccelerationMode): number {
   }
 }
 
-function partOfSpeechToInt(value: PartOfSpeech): number {
+function partOfSpeechToInt(value: PartOfSpeech): VoicevoxUserDictWordType {
   switch (value) {
     case "proper noun":
       return 0;
@@ -552,18 +562,10 @@ function wordOptionsToStruct(
   }
 }
 
-declare const synthesizerHandleBrand: unique symbol;
-type SynthesizerHandleBrand = typeof synthesizerHandleBrand;
-type SynthesizerHandle = ManagedPointer<SynthesizerHandleBrand>;
-declare const voiceModelHandleBrand: unique symbol;
-type VoiceModelHandleBrand = typeof voiceModelHandleBrand;
-type VoiceModelHandle = ManagedPointer<VoiceModelHandleBrand>;
-declare const openJtalkRcHandleBrand: unique symbol;
-type OpenJtalkRcHandleBrand = typeof openJtalkRcHandleBrand;
-type OpenJtalkRcHandle = ManagedPointer<OpenJtalkRcHandleBrand>;
-declare const userDictHandleBrand: unique symbol;
-type UserDictHandleBrand = typeof userDictHandleBrand;
-type UserDictHandle = ManagedPointer<UserDictHandleBrand>;
+type SynthesizerHandle = ManagedPointer<VoicevoxSynthesizer>;
+type VoiceModelHandle = ManagedPointer<VoicevoxVoiceModel>;
+type OpenJtalkRcHandle = ManagedPointer<OpenJtalkRc>;
+type UserDictHandle = ManagedPointer<VoicevoxUserDict>;
 
 export interface LoadOptions {
   onnxruntimePath?: string | undefined;
@@ -653,8 +655,8 @@ export function load(
     throw error;
   };
   let onnxruntimeState:
-    | { state: "unloaded"; load: () => Pointer }
-    | { state: "loaded"; ptr: Pointer }
+    | { state: "unloaded"; load: () => Pointer<VoicevoxOnnxruntime> }
+    | { state: "loaded"; ptr: Pointer<VoicevoxOnnxruntime> }
     | { state: "errored"; reason: unknown } = {
       state: "unloaded",
       load: voicevox_onnxruntime_init_once
@@ -698,16 +700,16 @@ export function load(
         throw onnxruntimeState.reason;
     }
   };
-  const SynthesizerHandle = createManagedPointerClass<SynthesizerHandleBrand>(
+  const SynthesizerHandle = createManagedPointerClass(
     voicevox_synthesizer_delete,
   );
-  const VoiceModelHandle = createManagedPointerClass<VoiceModelHandleBrand>(
+  const VoiceModelHandle = createManagedPointerClass(
     voicevox_voice_model_delete,
   );
-  const OpenJtalkRcHandle = createManagedPointerClass<OpenJtalkRcHandleBrand>(
+  const OpenJtalkRcHandle = createManagedPointerClass(
     voicevox_open_jtalk_rc_delete,
   );
-  const UserDictHandle = createManagedPointerClass<UserDictHandleBrand>(
+  const UserDictHandle = createManagedPointerClass(
     voicevox_user_dict_delete,
   );
   let cachedSupportedDevices: SupportedDevices | undefined;
@@ -722,7 +724,7 @@ export function load(
           voicevox_onnxruntime_create_supported_devices_json(
             getOnnxruntime(),
             syncPtrBuf,
-          )!,
+          ),
           "voicevox_onnxruntime_create_supported_devices_json",
         );
         const ptr = Pointer.create(syncPtrCell[0])!;

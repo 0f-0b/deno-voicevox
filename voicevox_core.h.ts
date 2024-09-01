@@ -1,8 +1,42 @@
-import { generateAsyncVariants, type NativeType } from "./ffi.ts";
+import {
+  generateAsyncVariants,
+  type NativeI32EnumType,
+  type NativePointerType,
+  type NativeType,
+} from "./ffi.ts";
 
-export const VoicevoxAccelerationMode = "i32" satisfies NativeType;
+export type VoicevoxAccelerationMode = 0 | 1 | 2;
+export const VoicevoxAccelerationMode = "i32" as NativeI32EnumType<
+  VoicevoxAccelerationMode
+>;
 export const VoicevoxResultCode = "i32" satisfies NativeType;
-export const VoicevoxUserDictWordType = "i32" satisfies NativeType;
+export type VoicevoxUserDictWordType = 0 | 1 | 2 | 3 | 4;
+export const VoicevoxUserDictWordType = "i32" as NativeI32EnumType<
+  VoicevoxUserDictWordType
+>;
+declare const openJtalkRcBrand: unique symbol;
+export type OpenJtalkRc = typeof openJtalkRcBrand;
+export const OpenJtalkRcPointer = "pointer" as NativePointerType<OpenJtalkRc>;
+declare const voicevoxOnnxruntimeBrand: unique symbol;
+export type VoicevoxOnnxruntime = typeof voicevoxOnnxruntimeBrand;
+export const VoicevoxOnnxruntimePointer = "pointer" as NativePointerType<
+  VoicevoxOnnxruntime
+>;
+declare const voicevoxSynthesizerBrand: unique symbol;
+export type VoicevoxSynthesizer = typeof voicevoxSynthesizerBrand;
+export const VoicevoxSynthesizerPointer = "pointer" as NativePointerType<
+  VoicevoxSynthesizer
+>;
+declare const voicevoxUserDictBrand: unique symbol;
+export type VoicevoxUserDict = typeof voicevoxUserDictBrand;
+export const VoicevoxUserDictPointer = "pointer" as NativePointerType<
+  VoicevoxUserDict
+>;
+declare const voicevoxVoiceModelBrand: unique symbol;
+export type VoicevoxVoiceModel = typeof voicevoxVoiceModelBrand;
+export const VoicevoxVoiceModelPointer = "pointer" as NativePointerType<
+  VoicevoxVoiceModel
+>;
 export const VoicevoxLoadOnnxruntimeOptions = {
   struct: ["pointer"],
 } satisfies NativeType;
@@ -36,7 +70,7 @@ export default generateAsyncVariants({
   },
   voicevox_onnxruntime_get: {
     parameters: [],
-    result: "pointer",
+    result: VoicevoxOnnxruntimePointer,
   },
   voicevox_onnxruntime_load_once: {
     parameters: [VoicevoxLoadOnnxruntimeOptions, "buffer"],
@@ -54,12 +88,12 @@ export default generateAsyncVariants({
     nonblocking: "varies",
   },
   voicevox_open_jtalk_rc_use_user_dict: {
-    parameters: ["pointer", "pointer"],
+    parameters: [OpenJtalkRcPointer, VoicevoxUserDictPointer],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_open_jtalk_rc_delete: {
-    parameters: ["pointer"],
+    parameters: [OpenJtalkRcPointer],
     result: "void",
   },
   voicevox_make_default_initialize_options: {
@@ -76,86 +110,91 @@ export default generateAsyncVariants({
     nonblocking: "varies",
   },
   voicevox_voice_model_id: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxVoiceModelPointer],
     result: "pointer",
   },
   voicevox_voice_model_get_metas_json: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxVoiceModelPointer],
     result: "pointer",
   },
   voicevox_voice_model_delete: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxVoiceModelPointer],
     result: "void",
   },
   voicevox_synthesizer_new: {
-    parameters: ["pointer", "pointer", VoicevoxInitializeOptions, "buffer"],
+    parameters: [
+      VoicevoxOnnxruntimePointer,
+      OpenJtalkRcPointer,
+      VoicevoxInitializeOptions,
+      "buffer",
+    ],
     result: VoicevoxResultCode,
   },
   voicevox_synthesizer_delete: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxSynthesizerPointer],
     result: "void",
   },
   voicevox_synthesizer_load_voice_model: {
-    parameters: ["pointer", "pointer"],
+    parameters: [VoicevoxSynthesizerPointer, VoicevoxVoiceModelPointer],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_unload_voice_model: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_synthesizer_get_onnxruntime: {
-    parameters: ["pointer"],
-    result: "pointer",
+    parameters: [VoicevoxSynthesizerPointer],
+    result: VoicevoxOnnxruntimePointer,
   },
   voicevox_synthesizer_is_gpu_mode: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxSynthesizerPointer],
     result: "bool",
   },
   voicevox_synthesizer_is_loaded_voice_model: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer"],
     result: "bool",
   },
   voicevox_synthesizer_create_metas_json: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxSynthesizerPointer],
     result: "pointer",
   },
   voicevox_onnxruntime_create_supported_devices_json: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxOnnxruntimePointer, "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_synthesizer_create_audio_query_from_kana: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_create_audio_query: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_create_accent_phrases_from_kana: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_create_accent_phrases: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_replace_mora_data: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_replace_phoneme_length: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_synthesizer_replace_mora_pitch: {
-    parameters: ["pointer", "buffer", "u32", "buffer"],
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
@@ -165,7 +204,7 @@ export default generateAsyncVariants({
   },
   voicevox_synthesizer_synthesis: {
     parameters: [
-      "pointer",
+      VoicevoxSynthesizerPointer,
       "buffer",
       "u32",
       VoicevoxSynthesisOptions,
@@ -181,7 +220,7 @@ export default generateAsyncVariants({
   },
   voicevox_synthesizer_tts_from_kana: {
     parameters: [
-      "pointer",
+      VoicevoxSynthesizerPointer,
       "buffer",
       "u32",
       VoicevoxTtsOptions,
@@ -193,7 +232,7 @@ export default generateAsyncVariants({
   },
   voicevox_synthesizer_tts: {
     parameters: [
-      "pointer",
+      VoicevoxSynthesizerPointer,
       "buffer",
       "u32",
       VoicevoxTtsOptions,
@@ -221,40 +260,40 @@ export default generateAsyncVariants({
   },
   voicevox_user_dict_new: {
     parameters: [],
-    result: "pointer",
+    result: VoicevoxUserDictPointer,
   },
   voicevox_user_dict_load: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxUserDictPointer, "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_user_dict_add_word: {
-    parameters: ["pointer", "buffer", "buffer"],
+    parameters: [VoicevoxUserDictPointer, "buffer", "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_user_dict_update_word: {
-    parameters: ["pointer", "buffer", "buffer"],
+    parameters: [VoicevoxUserDictPointer, "buffer", "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_user_dict_remove_word: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxUserDictPointer, "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_user_dict_to_json: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxUserDictPointer, "buffer"],
     result: VoicevoxResultCode,
   },
   voicevox_user_dict_import: {
-    parameters: ["pointer", "pointer"],
+    parameters: [VoicevoxUserDictPointer, VoicevoxUserDictPointer],
     result: VoicevoxResultCode,
   },
   voicevox_user_dict_save: {
-    parameters: ["pointer", "buffer"],
+    parameters: [VoicevoxUserDictPointer, "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
   voicevox_user_dict_delete: {
-    parameters: ["pointer"],
+    parameters: [VoicevoxUserDictPointer],
     result: "void",
   },
 });
