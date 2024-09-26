@@ -18,7 +18,7 @@ import symbols, {
   type VoicevoxSynthesizer,
   type VoicevoxUserDict,
   type VoicevoxUserDictWordType,
-  type VoicevoxVoiceModel,
+  type VoicevoxVoiceModelFile,
 } from "./voicevox_core.h.ts";
 
 export class VoicevoxError extends Error {
@@ -105,8 +105,8 @@ export interface SynthesisOptions {
 export interface Synthesizer extends Disposable {
   readonly gpuEnabled: boolean;
   readonly speakers: Speakers;
-  loadModel(model: VoiceModel): Promise<undefined>;
-  loadModelSync(model: VoiceModel): undefined;
+  loadModel(model: VoiceModelFile): Promise<undefined>;
+  loadModelSync(model: VoiceModelFile): undefined;
   unloadModel(modelId: string): undefined;
   isModelLoaded(modelId: string): boolean;
   tts(voiceId: number, text: string, options?: TtsOptions): Promise<Uint8Array>;
@@ -187,17 +187,17 @@ export interface SynthesizerConstructor {
   readonly prototype: Synthesizer;
 }
 
-export interface VoiceModel extends Disposable {
+export interface VoiceModelFile extends Disposable {
   readonly id: string;
   readonly speakers: Speakers;
   dispose(): undefined;
 }
 
-export interface VoiceModelConstructor {
+export interface VoiceModelFileConstructor {
   new (): never;
-  fromFile(path: string | URL): Promise<VoiceModel>;
-  fromFileSync(path: string | URL): VoiceModel;
-  readonly prototype: VoiceModel;
+  open(path: string | URL): Promise<VoiceModelFile>;
+  openSync(path: string | URL): VoiceModelFile;
+  readonly prototype: VoiceModelFile;
 }
 
 export interface OpenJtalk extends Disposable {
@@ -253,7 +253,7 @@ export interface UserDictConstructor {
 export interface VoicevoxCoreModule {
   readonly VERSION: string;
   readonly Synthesizer: SynthesizerConstructor;
-  readonly VoiceModel: VoiceModelConstructor;
+  readonly VoiceModelFile: VoiceModelFileConstructor;
   readonly OpenJtalk: OpenJtalkConstructor;
   readonly UserDict: UserDictConstructor;
   readonly unload: () => undefined;
@@ -563,7 +563,7 @@ function wordOptionsToStruct(
 }
 
 type SynthesizerHandle = ManagedPointer<VoicevoxSynthesizer>;
-type VoiceModelHandle = ManagedPointer<VoicevoxVoiceModel>;
+type VoiceModelFileHandle = ManagedPointer<VoicevoxVoiceModelFile>;
 type OpenJtalkRcHandle = ManagedPointer<OpenJtalkRc>;
 type UserDictHandle = ManagedPointer<VoicevoxUserDict>;
 
@@ -589,11 +589,11 @@ export function load(
     voicevox_open_jtalk_rc_delete,
     voicevox_make_default_initialize_options,
     voicevox_get_version,
-    voicevox_voice_model_new_from_path,
-    voicevox_voice_model_new_from_path_async,
-    voicevox_voice_model_id,
-    voicevox_voice_model_get_metas_json,
-    voicevox_voice_model_delete,
+    voicevox_voice_model_file_open,
+    voicevox_voice_model_file_open_async,
+    voicevox_voice_model_file_id,
+    voicevox_voice_model_file_get_metas_json,
+    voicevox_voice_model_file_close,
     voicevox_synthesizer_new,
     voicevox_synthesizer_delete,
     voicevox_synthesizer_load_voice_model,
@@ -703,8 +703,8 @@ export function load(
   const SynthesizerHandle = createManagedPointerClass(
     voicevox_synthesizer_delete,
   );
-  const VoiceModelHandle = createManagedPointerClass(
-    voicevox_voice_model_delete,
+  const VoiceModelFileHandle = createManagedPointerClass(
+    voicevox_voice_model_file_close,
   );
   const OpenJtalkRcHandle = createManagedPointerClass(
     voicevox_open_jtalk_rc_delete,
@@ -787,9 +787,9 @@ export function load(
       return this.#cachedSpeakers;
     }
 
-    async loadModel(model: VoiceModel): Promise<undefined> {
+    async loadModel(model: VoiceModelFile): Promise<undefined> {
       const thisHandle = synthesizerGetHandle(this);
-      const modelHandle = voiceModelGetHandle(model);
+      const modelHandle = voiceModelFileGetHandle(model);
       unwrap(
         await voicevox_synthesizer_load_voice_model_async(
           thisHandle.raw,
@@ -802,9 +802,9 @@ export function load(
       this.#cachedSpeakers = undefined;
     }
 
-    loadModelSync(model: VoiceModel): undefined {
+    loadModelSync(model: VoiceModelFile): undefined {
       const thisHandle = synthesizerGetHandle(this);
-      const modelHandle = voiceModelGetHandle(model);
+      const modelHandle = voiceModelFileGetHandle(model);
       unwrap(
         voicevox_synthesizer_load_voice_model(thisHandle.raw, modelHandle.raw),
         "voicevox_synthesizer_load_voice_model",
@@ -1471,35 +1471,35 @@ export function load(
     }
   }
 
-  let voiceModelGetHandle: (o: VoiceModel) => VoiceModelHandle;
+  let voiceModelFileGetHandle: (o: VoiceModelFile) => VoiceModelFileHandle;
 
-  class VoiceModelImpl implements VoiceModel {
+  class VoiceModelFileImpl implements VoiceModelFile {
     readonly #id: string;
     #cachedSpeakers: Speakers | undefined;
 
-    static async fromFile(path: string | URL): Promise<VoiceModel> {
+    static async open(path: string | URL): Promise<VoiceModelFile> {
       const pathBuf = encodePath(path);
       const ptrCell = new BigUint64Array(1);
       unwrap(
-        await voicevox_voice_model_new_from_path_async(pathBuf, ptrCell),
-        "voicevox_voice_model_new_from_path",
+        await voicevox_voice_model_file_open_async(pathBuf, ptrCell),
+        "voicevox_voice_model_file_open",
       );
       livenessBarrier(pathBuf);
-      return new VoiceModelImpl(
+      return new VoiceModelFileImpl(
         illegalConstructorKey,
-        new VoiceModelHandle(Pointer.create(ptrCell[0])),
+        new VoiceModelFileHandle(Pointer.create(ptrCell[0])),
       );
     }
 
-    static fromFileSync(path: string | URL): VoiceModel {
+    static openSync(path: string | URL): VoiceModelFile {
       const pathBuf = encodePath(path);
       unwrap(
-        voicevox_voice_model_new_from_path(pathBuf, syncPtrBuf),
-        "voicevox_voice_model_new_from_path",
+        voicevox_voice_model_file_open(pathBuf, syncPtrBuf),
+        "voicevox_voice_model_file_open",
       );
-      return new VoiceModelImpl(
+      return new VoiceModelFileImpl(
         illegalConstructorKey,
-        new VoiceModelHandle(Pointer.create(syncPtrCell[0])),
+        new VoiceModelFileHandle(Pointer.create(syncPtrCell[0])),
       );
     }
 
@@ -1510,7 +1510,9 @@ export function load(
     get speakers(): Speakers {
       if (!this.#cachedSpeakers) {
         const json = PointerView.getCString(
-          voicevox_voice_model_get_metas_json(voiceModelGetHandle(this).raw)!,
+          voicevox_voice_model_file_get_metas_json(
+            voiceModelFileGetHandle(this).raw,
+          )!,
         );
         this.#cachedSpeakers = speakersFromJson(
           JSON.parse(json) as SpeakerJson[],
@@ -1519,13 +1521,16 @@ export function load(
       return this.#cachedSpeakers;
     }
 
-    readonly #handle: VoiceModelHandle;
+    readonly #handle: VoiceModelFileHandle;
 
-    constructor(key: unknown = undefined, handle: VoiceModelHandle) {
+    constructor(key: unknown = undefined, handle: VoiceModelFileHandle) {
       illegalConstructor(key);
       this.#handle = handle;
       const id = new Uint8Array(
-        PointerView.getArrayBuffer(voicevox_voice_model_id(handle.raw)!, 16),
+        PointerView.getArrayBuffer(
+          voicevox_voice_model_file_id(handle.raw)!,
+          16,
+        ),
       );
       this.#id = uuidFromBytes(id);
     }
@@ -1543,7 +1548,7 @@ export function load(
         writable: true,
         configurable: true,
       });
-      voiceModelGetHandle = (o) => (o as VoiceModelImpl).#handle;
+      voiceModelFileGetHandle = (o) => (o as VoiceModelFileImpl).#handle;
     }
   }
 
@@ -1789,7 +1794,7 @@ export function load(
   return Object.freeze({
     VERSION: PointerView.getCString(voicevox_get_version()!),
     Synthesizer: SynthesizerImpl as SynthesizerConstructor,
-    VoiceModel: VoiceModelImpl as VoiceModelConstructor,
+    VoiceModelFile: VoiceModelFileImpl as VoiceModelFileConstructor,
     OpenJtalk: OpenJtalkImpl as OpenJtalkConstructor,
     UserDict: UserDictImpl as UserDictConstructor,
     unload,

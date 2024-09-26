@@ -3,6 +3,8 @@ on: [push, pull_request]
 permissions:
   contents: read
   id-token: write
+env:
+  DENO_FUTURE: 1
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -12,7 +14,7 @@ jobs:
       - name: Set up Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: 2.0.0-rc.0
+          deno-version: 1
       - name: Lint
         run: deno task lint
       - name: Test

@@ -25,12 +25,12 @@ if (Deno.args.length !== 1) {
   Deno.exit(2);
 }
 const [text] = Deno.args;
-const { Synthesizer, VoiceModel, OpenJtalk, unload } = load(dynamicLibPath);
+const { Synthesizer, VoiceModelFile, OpenJtalk, unload } = load(dynamicLibPath);
 try {
   console.log("Initializing…");
   using openJtalk = await OpenJtalk.create(openJtalkDictPath);
   using synthesizer = Synthesizer.create(openJtalk);
-  using model = await VoiceModel.fromFile(modelPath);
+  using model = await VoiceModelFile.open(modelPath);
   await synthesizer.loadModel(model);
   console.log("Synthesizing audio…");
   const outputWav = await synthesizer.tts(voiceId, text);

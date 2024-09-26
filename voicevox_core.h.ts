@@ -32,10 +32,10 @@ export type VoicevoxUserDict = typeof voicevoxUserDictBrand;
 export const VoicevoxUserDictPointer = "pointer" as NativePointerType<
   VoicevoxUserDict
 >;
-declare const voicevoxVoiceModelBrand: unique symbol;
-export type VoicevoxVoiceModel = typeof voicevoxVoiceModelBrand;
-export const VoicevoxVoiceModelPointer = "pointer" as NativePointerType<
-  VoicevoxVoiceModel
+declare const voicevoxVoiceModelFileBrand: unique symbol;
+export type VoicevoxVoiceModelFile = typeof voicevoxVoiceModelFileBrand;
+export const VoicevoxVoiceModelFilePointer = "pointer" as NativePointerType<
+  VoicevoxVoiceModelFile
 >;
 export const VoicevoxLoadOnnxruntimeOptions = {
   struct: ["pointer"],
@@ -104,21 +104,21 @@ export default generateAsyncVariants({
     parameters: [],
     result: "pointer",
   },
-  voicevox_voice_model_new_from_path: {
+  voicevox_voice_model_file_open: {
     parameters: ["buffer", "buffer"],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
-  voicevox_voice_model_id: {
-    parameters: [VoicevoxVoiceModelPointer],
+  voicevox_voice_model_file_id: {
+    parameters: [VoicevoxVoiceModelFilePointer],
     result: "pointer",
   },
-  voicevox_voice_model_get_metas_json: {
-    parameters: [VoicevoxVoiceModelPointer],
+  voicevox_voice_model_file_get_metas_json: {
+    parameters: [VoicevoxVoiceModelFilePointer],
     result: "pointer",
   },
-  voicevox_voice_model_delete: {
-    parameters: [VoicevoxVoiceModelPointer],
+  voicevox_voice_model_file_close: {
+    parameters: [VoicevoxVoiceModelFilePointer],
     result: "void",
   },
   voicevox_synthesizer_new: {
@@ -135,7 +135,7 @@ export default generateAsyncVariants({
     result: "void",
   },
   voicevox_synthesizer_load_voice_model: {
-    parameters: [VoicevoxSynthesizerPointer, VoicevoxVoiceModelPointer],
+    parameters: [VoicevoxSynthesizerPointer, VoicevoxVoiceModelFilePointer],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
