@@ -28,21 +28,21 @@ export function uuidToBytes(uuid: string): Uint8Array {
     throw new TypeError(`Invalid UUID: ${uuid}`);
   }
   const bytes = new Uint8Array(16);
-  bytes[0] = Number.parseInt(uuid.substring(0, 2), 16);
-  bytes[1] = Number.parseInt(uuid.substring(2, 4), 16);
-  bytes[2] = Number.parseInt(uuid.substring(4, 6), 16);
-  bytes[3] = Number.parseInt(uuid.substring(6, 8), 16);
-  bytes[4] = Number.parseInt(uuid.substring(9, 11), 16);
-  bytes[5] = Number.parseInt(uuid.substring(11, 13), 16);
-  bytes[6] = Number.parseInt(uuid.substring(14, 16), 16);
-  bytes[7] = Number.parseInt(uuid.substring(16, 18), 16);
-  bytes[8] = Number.parseInt(uuid.substring(19, 21), 16);
-  bytes[9] = Number.parseInt(uuid.substring(21, 23), 16);
-  bytes[10] = Number.parseInt(uuid.substring(24, 26), 16);
-  bytes[11] = Number.parseInt(uuid.substring(26, 28), 16);
-  bytes[12] = Number.parseInt(uuid.substring(28, 30), 16);
-  bytes[13] = Number.parseInt(uuid.substring(30, 32), 16);
-  bytes[14] = Number.parseInt(uuid.substring(32, 34), 16);
-  bytes[15] = Number.parseInt(uuid.substring(34), 16);
+  bytes[0] = parseInt(uuid.substring(0, 2), 16);
+  bytes[1] = parseInt(uuid.substring(2, 4), 16);
+  bytes[2] = parseInt(uuid.substring(4, 6), 16);
+  bytes[3] = parseInt(uuid.substring(6, 8), 16);
+  bytes[4] = parseInt(uuid.substring(9, 11), 16);
+  bytes[5] = parseInt(uuid.substring(11, 13), 16);
+  bytes[6] = parseInt(uuid.substring(14, 16), 16);
+  bytes[7] = parseInt(uuid.substring(16, 18), 16);
+  bytes[8] = parseInt(uuid.substring(19, 21), 16);
+  bytes[9] = parseInt(uuid.substring(21, 23), 16);
+  bytes[10] = parseInt(uuid.substring(24, 26), 16);
+  bytes[11] = parseInt(uuid.substring(26, 28), 16);
+  bytes[12] = parseInt(uuid.substring(28, 30), 16);
+  bytes[13] = parseInt(uuid.substring(30, 32), 16);
+  bytes[14] = parseInt(uuid.substring(32, 34), 16);
+  bytes[15] = parseInt(uuid.substring(34), 16);
   return bytes;
 }

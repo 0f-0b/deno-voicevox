@@ -110,10 +110,10 @@ export default generateAsyncVariants({
     nonblocking: "varies",
   },
   voicevox_voice_model_file_id: {
-    parameters: [VoicevoxVoiceModelFilePointer],
-    result: "pointer",
+    parameters: [VoicevoxVoiceModelFilePointer, "buffer"],
+    result: "void",
   },
-  voicevox_voice_model_file_get_metas_json: {
+  voicevox_voice_model_file_create_metas_json: {
     parameters: [VoicevoxVoiceModelFilePointer],
     result: "pointer",
   },

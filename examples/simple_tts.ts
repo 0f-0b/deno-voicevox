@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --unstable-ffi --allow-write=audio.wav --allow-ffi
+#!/usr/bin/env -S deno run --unstable-ffi --allow-import=jsr.io:443 --allow-write=audio.wav --allow-ffi
 
 import { load } from "jsr:@ud2/deno-voicevox";
 

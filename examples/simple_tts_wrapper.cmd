@@ -1,1 +1,1 @@
-@deno run --unstable-ffi --allow-write=audio.wav --allow-ffi %~dp0simple_tts.ts %*
+@deno run --unstable-ffi --allow-import=jsr.io:443 --allow-write=audio.wav --allow-ffi %~dp0simple_tts.ts %*

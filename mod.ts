@@ -592,7 +592,7 @@ export function load(
     voicevox_voice_model_file_open,
     voicevox_voice_model_file_open_async,
     voicevox_voice_model_file_id,
-    voicevox_voice_model_file_get_metas_json,
+    voicevox_voice_model_file_create_metas_json,
     voicevox_voice_model_file_close,
     voicevox_synthesizer_new,
     voicevox_synthesizer_delete,
@@ -1509,11 +1509,15 @@ export function load(
 
     get speakers(): Speakers {
       if (!this.#cachedSpeakers) {
-        const json = PointerView.getCString(
-          voicevox_voice_model_file_get_metas_json(
-            voiceModelFileGetHandle(this).raw,
-          )!,
-        );
+        const ptr = voicevox_voice_model_file_create_metas_json(
+          voiceModelFileGetHandle(this).raw,
+        )!;
+        let json: string;
+        try {
+          json = PointerView.getCString(ptr);
+        } finally {
+          voicevox_json_free(ptr);
+        }
         this.#cachedSpeakers = speakersFromJson(
           JSON.parse(json) as SpeakerJson[],
         );
@@ -1526,13 +1530,9 @@ export function load(
     constructor(key: unknown = undefined, handle: VoiceModelFileHandle) {
       illegalConstructor(key);
       this.#handle = handle;
-      const id = new Uint8Array(
-        PointerView.getArrayBuffer(
-          voicevox_voice_model_file_id(handle.raw)!,
-          16,
-        ),
-      );
-      this.#id = uuidFromBytes(id);
+      const idBuf = new Uint8Array(16);
+      voicevox_voice_model_file_id(handle.raw, idBuf);
+      this.#id = uuidFromBytes(idBuf);
     }
 
     dispose(): undefined {

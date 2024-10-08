@@ -20,8 +20,8 @@
     ]
   },
   "tasks": {
-    "cache": "deno cache examples/simple_tts.ts",
-    "lint": "deno fmt --check && deno lint && deno check --all examples/simple_tts.ts",
-    "test": "deno test --unstable-ffi --check=all --allow-read --allow-write --allow-run=./examples/simple_tts.ts,./examples/simple_tts_wrapper.cmd --allow-ffi"
+    "cache": "deno cache --allow-import=jsr.io:443 examples/simple_tts.ts",
+    "lint": "deno fmt --check && deno lint && deno check --all --allow-import=jsr.io:443 examples/simple_tts.ts",
+    "test": "deno test --unstable-ffi --check=all --allow-import=jsr.io:443 --allow-read --allow-write --allow-run=./examples/simple_tts.ts,./examples/simple_tts_wrapper.cmd --allow-ffi"
   }
 }
