@@ -31,24 +31,21 @@ export class VoicevoxError extends Error {
   }
 }
 
-export type VoiceModelType = "talk" | "singing teacher" | "frame decode";
+export type Capability = "talk" | "singing teacher" | "frame decode";
 
 export interface Voice {
-  readonly style: string;
   readonly id: number;
-  readonly modelTypes: readonly VoiceModelType[];
+  readonly style: string;
+  readonly capabilities: readonly Capability[];
   readonly order: number | null;
 }
 
 export interface Speaker {
+  readonly id: string;
   readonly name: string;
   readonly version: string;
   readonly voices: readonly Voice[];
   readonly order: number | null;
-}
-
-export interface Speakers {
-  readonly [uuid: string]: Speaker;
 }
 
 export interface SupportedDevices {
@@ -104,7 +101,7 @@ export interface SynthesisOptions {
 
 export interface Synthesizer extends Disposable {
   readonly gpuEnabled: boolean;
-  readonly speakers: Speakers;
+  readonly speakers: readonly Speaker[];
   loadModel(model: VoiceModelFile): Promise<undefined>;
   loadModelSync(model: VoiceModelFile): undefined;
   unloadModel(modelId: string): undefined;
@@ -189,7 +186,7 @@ export interface SynthesizerConstructor {
 
 export interface VoiceModelFile extends Disposable {
   readonly id: string;
-  readonly speakers: Speakers;
+  readonly speakers: readonly Speaker[];
   dispose(): undefined;
 }
 
@@ -358,9 +355,7 @@ function supportedDevicesFromJson(
   });
 }
 
-function voiceModelTypesFromJson(
-  json: StyleTypeJson,
-): readonly VoiceModelType[] {
+function capabilitiesFromJson(json: StyleTypeJson): readonly Capability[] {
   switch (json) {
     case "talk":
       return Object.freeze(["talk"]);
@@ -375,23 +370,21 @@ function voiceModelTypesFromJson(
 
 function voiceFromJson(json: StyleJson): Voice {
   return Object.freeze({
-    style: json.name,
     id: json.id,
-    modelTypes: voiceModelTypesFromJson(json.type),
+    style: json.name,
+    capabilities: capabilitiesFromJson(json.type),
     order: json.order,
   });
 }
 
-function speakersFromJson(json: readonly SpeakerJson[]): Speakers {
-  return Object.freeze(Object.fromEntries(json.map((meta) => [
-    meta.speaker_uuid,
-    Object.freeze({
-      name: meta.name,
-      version: meta.version,
-      voices: Object.freeze(meta.styles.map(voiceFromJson)),
-      order: meta.order,
-    }),
-  ])));
+function speakerFromJson(json: SpeakerJson): Speaker {
+  return Object.freeze({
+    id: json.speaker_uuid,
+    name: json.name,
+    version: json.version,
+    voices: Object.freeze(json.styles.map(voiceFromJson)),
+    order: json.order,
+  });
 }
 
 function moraToJson(value: Mora): MoraJson {
@@ -716,7 +709,7 @@ export function load(
   let synthesizerGetHandle: (o: Synthesizer) => SynthesizerHandle;
 
   class SynthesizerImpl implements Synthesizer {
-    #cachedSpeakers: Speakers | undefined;
+    #cachedSpeakers: readonly Speaker[] | undefined;
 
     static get supportedDevices(): SupportedDevices {
       if (!cachedSupportedDevices) {
@@ -769,7 +762,7 @@ export function load(
       return voicevox_synthesizer_is_gpu_mode(synthesizerGetHandle(this).raw);
     }
 
-    get speakers(): Speakers {
+    get speakers(): readonly Speaker[] {
       if (!this.#cachedSpeakers) {
         const ptr = voicevox_synthesizer_create_metas_json(
           synthesizerGetHandle(this).raw,
@@ -780,8 +773,9 @@ export function load(
         } finally {
           voicevox_json_free(ptr);
         }
-        this.#cachedSpeakers = speakersFromJson(
-          JSON.parse(json) as SpeakerJson[],
+        this.#cachedSpeakers = Object.freeze(
+          (JSON.parse(json) as SpeakerJson[])
+            .map(speakerFromJson),
         );
       }
       return this.#cachedSpeakers;
@@ -1178,9 +1172,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     createAccentPhrasesSync(voiceId: number, text: string): AccentPhrase[] {
@@ -1202,9 +1195,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     async createAccentPhrasesFromKana(
@@ -1232,9 +1224,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     createAccentPhrasesFromKanaSync(
@@ -1259,9 +1250,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     async replacePhonemeLengthAndMoraPitch(
@@ -1291,9 +1281,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     replacePhonemeLengthAndMoraPitchSync(
@@ -1320,9 +1309,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     async replacePhonemeLength(
@@ -1352,9 +1340,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     replacePhonemeLengthSync(
@@ -1381,9 +1368,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     async replaceMoraPitch(
@@ -1413,9 +1399,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     replaceMoraPitchSync(
@@ -1442,9 +1427,8 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[]).map(
-        accentPhraseFromJson,
-      );
+      return (JSON.parse(json) as AccentPhraseJson[])
+        .map(accentPhraseFromJson);
     }
 
     readonly #handle: SynthesizerHandle;
@@ -1475,7 +1459,7 @@ export function load(
 
   class VoiceModelFileImpl implements VoiceModelFile {
     readonly #id: string;
-    #cachedSpeakers: Speakers | undefined;
+    #cachedSpeakers: readonly Speaker[] | undefined;
 
     static async open(path: string | URL): Promise<VoiceModelFile> {
       const pathBuf = encodePath(path);
@@ -1507,7 +1491,7 @@ export function load(
       return this.#id;
     }
 
-    get speakers(): Speakers {
+    get speakers(): readonly Speaker[] {
       if (!this.#cachedSpeakers) {
         const ptr = voicevox_voice_model_file_create_metas_json(
           voiceModelFileGetHandle(this).raw,
@@ -1518,8 +1502,9 @@ export function load(
         } finally {
           voicevox_json_free(ptr);
         }
-        this.#cachedSpeakers = speakersFromJson(
-          JSON.parse(json) as SpeakerJson[],
+        this.#cachedSpeakers = Object.freeze(
+          (JSON.parse(json) as SpeakerJson[])
+            .map(speakerFromJson),
         );
       }
       return this.#cachedSpeakers;
