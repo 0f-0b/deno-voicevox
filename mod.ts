@@ -586,7 +586,7 @@ export function load(
     voicevox_voice_model_file_open_async,
     voicevox_voice_model_file_id,
     voicevox_voice_model_file_create_metas_json,
-    voicevox_voice_model_file_close,
+    voicevox_voice_model_file_delete,
     voicevox_synthesizer_new,
     voicevox_synthesizer_delete,
     voicevox_synthesizer_load_voice_model,
@@ -697,7 +697,7 @@ export function load(
     voicevox_synthesizer_delete,
   );
   const VoiceModelFileHandle = createManagedPointerClass(
-    voicevox_voice_model_file_close,
+    voicevox_voice_model_file_delete,
   );
   const OpenJtalkRcHandle = createManagedPointerClass(
     voicevox_open_jtalk_rc_delete,

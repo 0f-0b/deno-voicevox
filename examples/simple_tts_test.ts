@@ -8,7 +8,7 @@ async function exists(path: string | URL): Promise<boolean> {
   try {
     await Deno.lstat(path);
     return true;
-  } catch (e: unknown) {
+  } catch (e) {
     if (e instanceof Deno.errors.NotFound) {
       return false;
     }

@@ -117,7 +117,7 @@ export default generateAsyncVariants({
     parameters: [VoicevoxVoiceModelFilePointer],
     result: "pointer",
   },
-  voicevox_voice_model_file_close: {
+  voicevox_voice_model_file_delete: {
     parameters: [VoicevoxVoiceModelFilePointer],
     result: "void",
   },
