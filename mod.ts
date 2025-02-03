@@ -334,14 +334,14 @@ interface AccentPhraseJson {
 
 interface AudioQueryJson {
   accent_phrases: AccentPhraseJson[];
-  speed_scale: number;
-  pitch_scale: number;
-  intonation_scale: number;
-  volume_scale: number;
-  pre_phoneme_length: number;
-  post_phoneme_length: number;
-  output_sampling_rate: number;
-  output_stereo: boolean;
+  speedScale: number;
+  pitchScale: number;
+  intonationScale: number;
+  volumeScale: number;
+  prePhonemeLength: number;
+  postPhonemeLength: number;
+  outputSamplingRate: number;
+  outputStereo: boolean;
   kana?: string;
 }
 
@@ -430,14 +430,14 @@ function accentPhraseFromJson(json: AccentPhraseJson): AccentPhrase {
 function utteranceToJson(value: Utterance): AudioQueryJson {
   return {
     accent_phrases: value.accentPhrases.map(accentPhraseToJson),
-    speed_scale: value.rate,
-    pitch_scale: value.pitch,
-    intonation_scale: value.intonation,
-    volume_scale: value.volume,
-    pre_phoneme_length: value.paddingStart,
-    post_phoneme_length: value.paddingEnd,
-    output_sampling_rate: value.outputSampleRate,
-    output_stereo: value.outputStereo,
+    speedScale: value.rate,
+    pitchScale: value.pitch,
+    intonationScale: value.intonation,
+    volumeScale: value.volume,
+    prePhonemeLength: value.paddingStart,
+    postPhonemeLength: value.paddingEnd,
+    outputSamplingRate: value.outputSampleRate,
+    outputStereo: value.outputStereo,
   };
 }
 
@@ -445,14 +445,14 @@ function utteranceFromJson(voiceId: number, json: AudioQueryJson): Utterance {
   return {
     accentPhrases: json.accent_phrases.map(accentPhraseFromJson),
     voiceId,
-    volume: json.volume_scale,
-    rate: json.speed_scale,
-    pitch: json.pitch_scale,
-    intonation: json.intonation_scale,
-    paddingStart: json.pre_phoneme_length,
-    paddingEnd: json.post_phoneme_length,
-    outputSampleRate: json.output_sampling_rate,
-    outputStereo: json.output_stereo,
+    volume: json.volumeScale,
+    rate: json.speedScale,
+    pitch: json.pitchScale,
+    intonation: json.intonationScale,
+    paddingStart: json.prePhonemeLength,
+    paddingEnd: json.postPhonemeLength,
+    outputSampleRate: json.outputSamplingRate,
+    outputStereo: json.outputStereo,
   };
 }
 
