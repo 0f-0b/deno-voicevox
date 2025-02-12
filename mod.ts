@@ -217,20 +217,17 @@ export type PartOfSpeech =
   | "adjective"
   | "suffix";
 
-export interface WordOptions {
-  accentType?: number | undefined;
+export interface Word {
+  text: string;
+  pronunciation: string;
+  accentType: number;
   partOfSpeech?: PartOfSpeech | undefined;
   priority?: number | undefined;
 }
 
 export interface UserDict extends Disposable {
-  addWord(text: string, pronunciation: string, options?: WordOptions): string;
-  updateWord(
-    id: string,
-    text: string,
-    pronunciation: string,
-    options?: WordOptions,
-  ): undefined;
+  addWord(word: Word): string;
+  updateWord(id: string, word: Word): undefined;
   deleteWord(id: string): undefined;
   importFrom(other: UserDict): undefined;
   save(path: string | URL): Promise<undefined>;
@@ -536,15 +533,8 @@ function synthesisOptionsToStruct(
   }
 }
 
-function wordOptionsToStruct(
-  struct: Uint8Array,
-  value: WordOptions,
-): undefined {
+function wordOptionsToStruct(struct: Uint8Array, value: Word): undefined {
   const view = asView(struct);
-  const { accentType } = value;
-  if (accentType !== undefined) {
-    view.setBigUint64(16, BigInt(accentType), littleEndian);
-  }
   const { partOfSpeech } = value;
   if (partOfSpeech !== undefined) {
     view.setInt32(24, partOfSpeechToInt(partOfSpeech), littleEndian);
@@ -1625,21 +1615,16 @@ export function load(
       );
     }
 
-    addWord(
-      text: string,
-      pronunciation: string,
-      options?: WordOptions,
-    ): string {
+    addWord(word: Word): string {
       const thisHandle = userDictGetHandle(this);
-      const textBuf = encodeCString(text);
-      const pronunciationBuf = encodeCString(pronunciation);
+      const textBuf = encodeCString(word.text);
+      const pronunciationBuf = encodeCString(word.pronunciation);
       const wordStruct = voicevox_user_dict_word_make(
         textBuf,
         pronunciationBuf,
+        BigInt(word.accentType),
       );
-      if (options !== undefined) {
-        wordOptionsToStruct(wordStruct, options);
-      }
+      wordOptionsToStruct(wordStruct, word);
       const id = new Uint8Array(16);
       unwrap(
         voicevox_user_dict_add_word(thisHandle.raw, wordStruct, id),
@@ -1650,23 +1635,17 @@ export function load(
       return uuidFromBytes(id);
     }
 
-    updateWord(
-      id: string,
-      text: string,
-      pronunciation: string,
-      options?: WordOptions,
-    ): undefined {
+    updateWord(id: string, word: Word): undefined {
       const thisHandle = userDictGetHandle(this);
       const idBuf = uuidToBytes(id);
-      const textBuf = encodeCString(text);
-      const pronunciationBuf = encodeCString(pronunciation);
+      const textBuf = encodeCString(word.text);
+      const pronunciationBuf = encodeCString(word.pronunciation);
       const wordStruct = voicevox_user_dict_word_make(
         textBuf,
         pronunciationBuf,
+        BigInt(word.accentType),
       );
-      if (options !== undefined) {
-        wordOptionsToStruct(wordStruct, options);
-      }
+      wordOptionsToStruct(wordStruct, word);
       unwrap(
         voicevox_user_dict_update_word(thisHandle.raw, idBuf, wordStruct),
         "voicevox_user_dict_update_word",

@@ -255,7 +255,7 @@ export default generateAsyncVariants({
     result: "pointer",
   },
   voicevox_user_dict_word_make: {
-    parameters: ["buffer", "buffer"],
+    parameters: ["buffer", "buffer", "usize"],
     result: VoicevoxUserDictWord,
   },
   voicevox_user_dict_new: {
