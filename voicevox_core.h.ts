@@ -92,6 +92,10 @@ export default generateAsyncVariants({
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
+  voicevox_open_jtalk_rc_analyze: {
+    parameters: [OpenJtalkRcPointer, "buffer", "buffer"],
+    result: VoicevoxResultCode,
+  },
   voicevox_open_jtalk_rc_delete: {
     parameters: [OpenJtalkRcPointer],
     result: "void",
@@ -103,6 +107,10 @@ export default generateAsyncVariants({
   voicevox_get_version: {
     parameters: [],
     result: "pointer",
+  },
+  voicevox_audio_query_create_from_accent_phrases: {
+    parameters: ["buffer", "buffer"],
+    result: VoicevoxResultCode,
   },
   voicevox_voice_model_file_open: {
     parameters: ["buffer", "buffer"],

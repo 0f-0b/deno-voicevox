@@ -145,27 +145,27 @@ export interface Synthesizer extends Disposable {
   ): AccentPhrase[];
   replacePhonemeLengthAndMoraPitch(
     voiceId: number,
-    accentPhrases: AccentPhrase[],
+    accentPhrases: readonly AccentPhrase[],
   ): Promise<AccentPhrase[]>;
   replacePhonemeLengthAndMoraPitchSync(
     voiceId: number,
-    accentPhrases: AccentPhrase[],
+    accentPhrases: readonly AccentPhrase[],
   ): AccentPhrase[];
   replacePhonemeLength(
     voiceId: number,
-    accentPhrases: AccentPhrase[],
+    accentPhrases: readonly AccentPhrase[],
   ): Promise<AccentPhrase[]>;
   replacePhonemeLengthSync(
     voiceId: number,
-    accentPhrases: AccentPhrase[],
+    accentPhrases: readonly AccentPhrase[],
   ): AccentPhrase[];
   replaceMoraPitch(
     voiceId: number,
-    accentPhrases: AccentPhrase[],
+    accentPhrases: readonly AccentPhrase[],
   ): Promise<AccentPhrase[]>;
   replaceMoraPitchSync(
     voiceId: number,
-    accentPhrases: AccentPhrase[],
+    accentPhrases: readonly AccentPhrase[],
   ): AccentPhrase[];
   dispose(): undefined;
 }
@@ -181,6 +181,10 @@ export interface SynthesizerConstructor {
   new (): never;
   readonly supportedDevices: SupportedDevices;
   create(openJtalk: OpenJtalk, options?: SynthesizerOptions): Synthesizer;
+  createUtteranceFromAccentPhrases(
+    voiceId: number,
+    accentPhrases: readonly AccentPhrase[],
+  ): CreateUtteranceResult;
   readonly prototype: Synthesizer;
 }
 
@@ -200,6 +204,7 @@ export interface VoiceModelFileConstructor {
 export interface OpenJtalk extends Disposable {
   useUserDict(userDict: UserDict): Promise<undefined>;
   useUserDictSync(userDict: UserDict): undefined;
+  analyze(text: string): AccentPhrase[];
   dispose(): undefined;
 }
 
@@ -569,9 +574,11 @@ export function load(
     voicevox_open_jtalk_rc_new_async,
     voicevox_open_jtalk_rc_use_user_dict,
     voicevox_open_jtalk_rc_use_user_dict_async,
+    voicevox_open_jtalk_rc_analyze,
     voicevox_open_jtalk_rc_delete,
     voicevox_make_default_initialize_options,
     voicevox_get_version,
+    voicevox_audio_query_create_from_accent_phrases,
     voicevox_voice_model_file_open,
     voicevox_voice_model_file_open_async,
     voicevox_voice_model_file_id,
@@ -748,6 +755,30 @@ export function load(
       );
     }
 
+    static createUtteranceFromAccentPhrases(
+      voiceId: number,
+      accentPhrases: readonly AccentPhrase[],
+    ): CreateUtteranceResult {
+      const jsonBuf = encodeCString(
+        JSON.stringify(accentPhrases.map(accentPhraseToJson)),
+      );
+      unwrap(
+        voicevox_audio_query_create_from_accent_phrases(jsonBuf, syncPtrBuf),
+        "voicevox_audio_query_create_from_accent_phrases",
+      );
+      const ptr = Pointer.create(syncPtrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return createUtteranceResultFromJson(
+        voiceId,
+        JSON.parse(json) as AudioQueryJson,
+      );
+    }
+
     get gpuEnabled(): boolean {
       return voicevox_synthesizer_is_gpu_mode(synthesizerGetHandle(this).raw);
     }
@@ -764,8 +795,7 @@ export function load(
           voicevox_json_free(ptr);
         }
         this.#cachedSpeakers = Object.freeze(
-          (JSON.parse(json) as SpeakerJson[])
-            .map(speakerFromJson),
+          (JSON.parse(json) as SpeakerJson[]).map(speakerFromJson),
         );
       }
       return this.#cachedSpeakers;
@@ -1162,8 +1192,7 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     createAccentPhrasesSync(voiceId: number, text: string): AccentPhrase[] {
@@ -1185,8 +1214,7 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     async createAccentPhrasesFromKana(
@@ -1214,8 +1242,7 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     createAccentPhrasesFromKanaSync(
@@ -1240,13 +1267,12 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     async replacePhonemeLengthAndMoraPitch(
       voiceId: number,
-      accentPhrases: AccentPhrase[],
+      accentPhrases: readonly AccentPhrase[],
     ): Promise<AccentPhrase[]> {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
@@ -1271,13 +1297,12 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     replacePhonemeLengthAndMoraPitchSync(
       voiceId: number,
-      accentPhrases: AccentPhrase[],
+      accentPhrases: readonly AccentPhrase[],
     ): AccentPhrase[] {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
@@ -1299,13 +1324,12 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     async replacePhonemeLength(
       voiceId: number,
-      accentPhrases: AccentPhrase[],
+      accentPhrases: readonly AccentPhrase[],
     ): Promise<AccentPhrase[]> {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
@@ -1330,13 +1354,12 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     replacePhonemeLengthSync(
       voiceId: number,
-      accentPhrases: AccentPhrase[],
+      accentPhrases: readonly AccentPhrase[],
     ): AccentPhrase[] {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
@@ -1358,13 +1381,12 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     async replaceMoraPitch(
       voiceId: number,
-      accentPhrases: AccentPhrase[],
+      accentPhrases: readonly AccentPhrase[],
     ): Promise<AccentPhrase[]> {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
@@ -1389,13 +1411,12 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     replaceMoraPitchSync(
       voiceId: number,
-      accentPhrases: AccentPhrase[],
+      accentPhrases: readonly AccentPhrase[],
     ): AccentPhrase[] {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(
@@ -1417,8 +1438,7 @@ export function load(
       } finally {
         voicevox_json_free(ptr);
       }
-      return (JSON.parse(json) as AccentPhraseJson[])
-        .map(accentPhraseFromJson);
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     readonly #handle: SynthesizerHandle;
@@ -1493,8 +1513,7 @@ export function load(
           voicevox_json_free(ptr);
         }
         this.#cachedSpeakers = Object.freeze(
-          (JSON.parse(json) as SpeakerJson[])
-            .map(speakerFromJson),
+          (JSON.parse(json) as SpeakerJson[]).map(speakerFromJson),
         );
       }
       return this.#cachedSpeakers;
@@ -1580,6 +1599,23 @@ export function load(
         ),
         "voicevox_open_jtalk_rc_use_user_dict",
       );
+    }
+
+    analyze(text: string): AccentPhrase[] {
+      const thisHandle = openJtalkGetHandle(this);
+      const textBuf = encodeCString(text);
+      unwrap(
+        voicevox_open_jtalk_rc_analyze(thisHandle.raw, textBuf, syncPtrBuf),
+        "voicevox_open_jtalk_rc_analyze",
+      );
+      const ptr = Pointer.create(syncPtrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
     }
 
     readonly #handle: OpenJtalkRcHandle;
