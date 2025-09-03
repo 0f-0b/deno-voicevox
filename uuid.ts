@@ -6,7 +6,7 @@ const hexEncode: string[] = [];
   }
 }
 
-export function uuidFromBytes(bytes: Uint8Array): string {
+export function uuidFromBytes(bytes: Uint8Array<ArrayBuffer>): string {
   if (bytes.length !== 16) {
     throw new TypeError("Length of UUID must be 16 bytes");
   }
@@ -23,7 +23,7 @@ export function uuidFromBytes(bytes: Uint8Array): string {
 const uuidRE =
   /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
 
-export function uuidToBytes(uuid: string): Uint8Array {
+export function uuidToBytes(uuid: string): Uint8Array<ArrayBuffer> {
   if (!uuidRE.test(uuid)) {
     throw new TypeError(`Invalid UUID: ${uuid}`);
   }

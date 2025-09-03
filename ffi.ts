@@ -96,7 +96,7 @@ export function livenessBarrier(obj: WeakKey): undefined {
 export const littleEndian = new Uint8Array(Uint16Array.of(1).buffer)[0] === 1;
 const encoder = new TextEncoder();
 
-export function encodeCString(str: string): Uint8Array {
+export function encodeCString(str: string): Uint8Array<ArrayBuffer> {
   const nulPos = str.indexOf("\0");
   if (nulPos !== -1) {
     throw new TypeError(`String contains NUL character at position ${nulPos}`);

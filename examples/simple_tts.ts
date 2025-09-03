@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-import=jsr.io:443 --allow-write=audio.wav --allow-ffi
 
-import { load } from "jsr:@ud2/deno-voicevox";
+import { load } from "@ud2/deno-voicevox";
 
 function libNameByOS(base: string): string {
   switch (Deno.build.os) {

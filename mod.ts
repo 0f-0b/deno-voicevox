@@ -106,20 +106,34 @@ export interface Synthesizer extends Disposable {
   loadModelSync(model: VoiceModelFile): undefined;
   unloadModel(modelId: string): undefined;
   isModelLoaded(modelId: string): boolean;
-  tts(voiceId: number, text: string, options?: TtsOptions): Promise<Uint8Array>;
-  ttsSync(voiceId: number, text: string, options?: TtsOptions): Uint8Array;
+  tts(
+    voiceId: number,
+    text: string,
+    options?: TtsOptions,
+  ): Promise<Uint8Array<ArrayBuffer>>;
+  ttsSync(
+    voiceId: number,
+    text: string,
+    options?: TtsOptions,
+  ): Uint8Array<ArrayBuffer>;
   ttsFromKana(
     voiceId: number,
     kana: string,
     options?: TtsOptions,
-  ): Promise<Uint8Array>;
+  ): Promise<Uint8Array<ArrayBuffer>>;
   ttsFromKanaSync(
     voiceId: number,
     kana: string,
     options?: TtsOptions,
-  ): Uint8Array;
-  speak(utterance: Utterance, options?: SynthesisOptions): Promise<Uint8Array>;
-  speakSync(utterance: Utterance, options?: SynthesisOptions): Uint8Array;
+  ): Uint8Array<ArrayBuffer>;
+  speak(
+    utterance: Utterance,
+    options?: SynthesisOptions,
+  ): Promise<Uint8Array<ArrayBuffer>>;
+  speakSync(
+    utterance: Utterance,
+    options?: SynthesisOptions,
+  ): Uint8Array<ArrayBuffer>;
   createUtterance(
     voiceId: number,
     text: string,
@@ -274,20 +288,18 @@ function asPath(pathOrURL: string | URL): string {
   return typeof pathOrURL === "string" ? pathOrURL : fromFileUrl(pathOrURL);
 }
 
-function encodePath(pathOrURL: string | URL): Uint8Array {
+function encodePath(pathOrURL: string | URL): Uint8Array<ArrayBuffer> {
   return encodeCString(asPath(pathOrURL));
 }
 
 function encodeOptionalPath(
   pathOrURL: string | URL | undefined,
-): Uint8Array | undefined {
+): Uint8Array<ArrayBuffer> | undefined {
   return pathOrURL === undefined ? undefined : encodePath(pathOrURL);
 }
 
-function asView(source: BufferSource): DataView {
-  return ArrayBuffer.isView(source)
-    ? new DataView(source.buffer, source.byteOffset, source.byteLength)
-    : new DataView(source);
+function asDataView(view: ArrayBufferView<ArrayBuffer>): DataView<ArrayBuffer> {
+  return new DataView(view.buffer, view.byteOffset, view.byteLength);
 }
 
 const syncLenCell = new BigUint64Array(1);
@@ -505,10 +517,10 @@ function partOfSpeechToInt(value: PartOfSpeech): VoicevoxUserDictWordType {
 }
 
 function synthesizerOptionsToStruct(
-  struct: Uint8Array,
+  struct: Uint8Array<ArrayBuffer>,
   value: SynthesizerOptions,
 ): undefined {
-  const view = asView(struct);
+  const view = asDataView(struct);
   const { accelerationMode } = value;
   if (accelerationMode !== undefined) {
     view.setInt32(0, accelerationModeToInt(accelerationMode), littleEndian);
@@ -519,8 +531,11 @@ function synthesizerOptionsToStruct(
   }
 }
 
-function ttsOptionsToStruct(struct: Uint8Array, value: TtsOptions): undefined {
-  const view = asView(struct);
+function ttsOptionsToStruct(
+  struct: Uint8Array<ArrayBuffer>,
+  value: TtsOptions,
+): undefined {
+  const view = asDataView(struct);
   const { enableInterrogativeUpspeak } = value;
   if (enableInterrogativeUpspeak !== undefined) {
     view.setUint8(0, enableInterrogativeUpspeak ? 1 : 0);
@@ -528,18 +543,21 @@ function ttsOptionsToStruct(struct: Uint8Array, value: TtsOptions): undefined {
 }
 
 function synthesisOptionsToStruct(
-  struct: Uint8Array,
+  struct: Uint8Array<ArrayBuffer>,
   value: SynthesisOptions,
 ): undefined {
-  const view = asView(struct);
+  const view = asDataView(struct);
   const { enableInterrogativeUpspeak } = value;
   if (enableInterrogativeUpspeak !== undefined) {
     view.setUint8(0, enableInterrogativeUpspeak ? 1 : 0);
   }
 }
 
-function wordOptionsToStruct(struct: Uint8Array, value: Word): undefined {
-  const view = asView(struct);
+function wordOptionsToStruct(
+  struct: Uint8Array<ArrayBuffer>,
+  value: Word,
+): undefined {
+  const view = asDataView(struct);
   const { partOfSpeech } = value;
   if (partOfSpeech !== undefined) {
     view.setInt32(24, partOfSpeechToInt(partOfSpeech), littleEndian);
@@ -661,7 +679,7 @@ export function load(
           const optionsStruct =
             voicevox_make_default_load_onnxruntime_options!();
           if (onnxruntimePathBuf) {
-            const view = asView(optionsStruct);
+            const view = asDataView(optionsStruct);
             const ptr = Pointer.value(Pointer.of(onnxruntimePathBuf));
             view.setBigUint64(0, ptr, littleEndian);
           }
@@ -847,7 +865,7 @@ export function load(
       voiceId: number,
       text: string,
       options?: TtsOptions,
-    ): Promise<Uint8Array> {
+    ): Promise<Uint8Array<ArrayBuffer>> {
       const thisHandle = synthesizerGetHandle(this);
       const textBuf = encodeCString(text);
       const optionsStruct = voicevox_make_default_tts_options();
@@ -871,7 +889,7 @@ export function load(
       livenessBarrier(textBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       const len = Number(lenCell[0]);
-      let buf: Uint8Array;
+      let buf: Uint8Array<ArrayBuffer>;
       try {
         buf = new Uint8Array(len);
         PointerView.copyInto(ptr, buf);
@@ -881,7 +899,11 @@ export function load(
       return buf;
     }
 
-    ttsSync(voiceId: number, text: string, options?: TtsOptions): Uint8Array {
+    ttsSync(
+      voiceId: number,
+      text: string,
+      options?: TtsOptions,
+    ): Uint8Array<ArrayBuffer> {
       const thisHandle = synthesizerGetHandle(this);
       const textBuf = encodeCString(text);
       const optionsStruct = voicevox_make_default_tts_options();
@@ -901,7 +923,7 @@ export function load(
       );
       const ptr = Pointer.create(syncPtrCell[0])!;
       const len = Number(syncLenCell[0]);
-      let buf: Uint8Array;
+      let buf: Uint8Array<ArrayBuffer>;
       try {
         buf = new Uint8Array(len);
         PointerView.copyInto(ptr, buf);
@@ -915,7 +937,7 @@ export function load(
       voiceId: number,
       kana: string,
       options?: TtsOptions,
-    ): Promise<Uint8Array> {
+    ): Promise<Uint8Array<ArrayBuffer>> {
       const thisHandle = synthesizerGetHandle(this);
       const kanaBuf = encodeCString(kana);
       const optionsStruct = voicevox_make_default_tts_options();
@@ -939,7 +961,7 @@ export function load(
       livenessBarrier(kanaBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       const len = Number(lenCell[0]);
-      let buf: Uint8Array;
+      let buf: Uint8Array<ArrayBuffer>;
       try {
         buf = new Uint8Array(len);
         PointerView.copyInto(ptr, buf);
@@ -953,7 +975,7 @@ export function load(
       voiceId: number,
       kana: string,
       options?: TtsOptions,
-    ): Uint8Array {
+    ): Uint8Array<ArrayBuffer> {
       const thisHandle = synthesizerGetHandle(this);
       const kanaBuf = encodeCString(kana);
       const optionsStruct = voicevox_make_default_tts_options();
@@ -973,7 +995,7 @@ export function load(
       );
       const ptr = Pointer.create(syncPtrCell[0])!;
       const len = Number(syncLenCell[0]);
-      let buf: Uint8Array;
+      let buf: Uint8Array<ArrayBuffer>;
       try {
         buf = new Uint8Array(len);
         PointerView.copyInto(ptr, buf);
@@ -986,7 +1008,7 @@ export function load(
     async speak(
       utterance: Utterance,
       options?: SynthesisOptions,
-    ): Promise<Uint8Array> {
+    ): Promise<Uint8Array<ArrayBuffer>> {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(JSON.stringify(utteranceToJson(utterance)));
       const voiceId = utterance.voiceId;
@@ -1011,7 +1033,7 @@ export function load(
       livenessBarrier(jsonBuf);
       const ptr = Pointer.create(ptrCell[0])!;
       const len = Number(lenCell[0]);
-      let buf: Uint8Array;
+      let buf: Uint8Array<ArrayBuffer>;
       try {
         buf = new Uint8Array(len);
         PointerView.copyInto(ptr, buf);
@@ -1021,7 +1043,10 @@ export function load(
       return buf;
     }
 
-    speakSync(utterance: Utterance, options?: SynthesisOptions): Uint8Array {
+    speakSync(
+      utterance: Utterance,
+      options?: SynthesisOptions,
+    ): Uint8Array<ArrayBuffer> {
       const thisHandle = synthesizerGetHandle(this);
       const jsonBuf = encodeCString(JSON.stringify(utteranceToJson(utterance)));
       const voiceId = utterance.voiceId;
@@ -1042,7 +1067,7 @@ export function load(
       );
       const ptr = Pointer.create(syncPtrCell[0])!;
       const len = Number(syncLenCell[0]);
-      let buf: Uint8Array;
+      let buf: Uint8Array<ArrayBuffer>;
       try {
         buf = new Uint8Array(len);
         PointerView.copyInto(ptr, buf);
