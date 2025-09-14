@@ -11,9 +11,28 @@ jobs:
         uses: actions/checkout@v5
       - name: Set up Deno
         uses: denoland/setup-deno@v2
+      - name: Download VOICEVOX CORE
+        run: |
+          curl -fLO --retry 10 'https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.1/voicevox_core-linux-x64-0.16.1.zip'
+          unzip -j voicevox_core-linux-x64-0.16.1.zip voicevox_core-linux-x64-0.16.1/lib/libvoicevox_core.so
+          rm voicevox_core-linux-x64-0.16.1.zip
+      - name: Download VOICEVOX ONNX runtime
+        run: |
+          curl -fLO --retry 10 'https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-linux-x64-1.17.3.tgz'
+          tar --strip-components 2 -xf voicevox_onnxruntime-linux-x64-1.17.3.tgz voicevox_onnxruntime-linux-x64-1.17.3/lib/libvoicevox_onnxruntime.so.1.17.3
+          rm voicevox_onnxruntime-linux-x64-1.17.3.tgz
+      - name: Download Open JTalk dictionary
+        run: |
+          curl -fLO --retry 10 'https://downloads.sourceforge.net/project/open-jtalk/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz'
+          tar -xf open_jtalk_dic_utf_8-1.11.tar.gz
+          rm open_jtalk_dic_utf_8-1.11.tar.gz
+      - name: Download model
+        run: |
+          mkdir -p model
+          curl -fLo model/sample.vvm --retry 10 'https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.0/0.vvm'
       - name: Lint
         run: deno task lint
       - name: Test
-        run: deno task test --no-run
+        run: deno task test
       - name: Publish
         run: deno run -A jsr:@david/publish-on-tag@0.2.0
