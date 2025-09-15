@@ -127,17 +127,19 @@ export function createManagedPointerClass<Brand>(
     }
 
     get raw(): Pointer<Brand> {
-      if (this.#raw === undefined) {
+      const raw = this.#raw;
+      if (raw === undefined) {
         throw new ReferenceError("Object is disposed");
       }
-      return this.#raw;
+      return raw;
     }
 
     drop(): undefined {
-      if (this.#raw !== undefined) {
+      const raw = this.#raw;
+      if (raw !== undefined) {
         finalizer.unregister(this);
-        drop(this.#raw);
         this.#raw = undefined;
+        drop(raw);
       }
     }
   };

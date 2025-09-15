@@ -26,13 +26,9 @@ if (Deno.args.length !== 1) {
   Deno.exit(2);
 }
 const [text] = Deno.args;
-const {
-  Onnxruntime,
-  Synthesizer,
-  VoiceModelFile,
-  OpenJtalk,
-} = load(dynamicLibPath);
 console.log("Initializing…");
+await using lib = load(dynamicLibPath);
+const { Onnxruntime, Synthesizer, VoiceModelFile, OpenJtalk } = lib.exports;
 Onnxruntime?.load(resolve(Onnxruntime.versionedFilename));
 using openJtalk = await OpenJtalk.create(openJtalkDictPath);
 using synthesizer = Synthesizer.create(openJtalk);
