@@ -31,6 +31,12 @@ export class VoicevoxError extends Error {
   }
 }
 
+export interface Onnxruntime {
+  readonly versionedFilename: string;
+  readonly unversionedFilename: string;
+  load: (path?: string | URL) => undefined;
+}
+
 export type Capability = "talk" | "singing teacher" | "frame decode";
 
 export interface Voice {
@@ -265,6 +271,7 @@ export interface UserDictConstructor {
 
 export interface VoicevoxCoreModule {
   readonly VERSION: string;
+  readonly Onnxruntime: Onnxruntime | undefined;
   readonly Synthesizer: SynthesizerConstructor;
   readonly VoiceModelFile: VoiceModelFileConstructor;
   readonly OpenJtalk: OpenJtalkConstructor;
@@ -292,12 +299,6 @@ function encodePath(pathOrURL: string | URL): Uint8Array<ArrayBuffer> {
   return encodeCString(asPath(pathOrURL));
 }
 
-function encodeOptionalPath(
-  pathOrURL: string | URL | undefined,
-): Uint8Array<ArrayBuffer> | undefined {
-  return pathOrURL === undefined ? undefined : encodePath(pathOrURL);
-}
-
 function asDataView(view: ArrayBufferView<ArrayBuffer>): DataView<ArrayBuffer> {
   return new DataView(view.buffer, view.byteOffset, view.byteLength);
 }
@@ -306,6 +307,7 @@ const syncLenCell = new BigUint64Array(1);
 const syncPtrCell = new BigUint64Array(1);
 const syncLenBuf = new Uint8Array(syncLenCell.buffer);
 const syncPtrBuf = new Uint8Array(syncPtrCell.buffer);
+const syncIdBuf = new Uint8Array(16);
 
 interface SupportedDevicesJson {
   cpu: boolean;
@@ -573,18 +575,12 @@ type VoiceModelFileHandle = ManagedPointer<VoicevoxVoiceModelFile>;
 type OpenJtalkRcHandle = ManagedPointer<OpenJtalkRc>;
 type UserDictHandle = ManagedPointer<VoicevoxUserDict>;
 
-export interface LoadOptions {
-  onnxruntimePath?: string | undefined;
-}
-
 /** @tags allow-ffi */
-export function load(
-  libraryPath: string | URL,
-  options?: LoadOptions,
-): VoicevoxCoreModule {
-  const onnxruntimePathBuf = encodeOptionalPath(options?.onnxruntimePath);
+export function load(libraryPath: string | URL): VoicevoxCoreModule {
   const lib = DynamicLibrary.open(libraryPath, symbols);
   const {
+    voicevox_get_onnxruntime_lib_versioned_filename,
+    voicevox_get_onnxruntime_lib_unversioned_filename,
     voicevox_make_default_load_onnxruntime_options,
     voicevox_onnxruntime_load_once,
     voicevox_onnxruntime_init_once,
@@ -662,51 +658,34 @@ export function load(
     Error.captureStackTrace?.(error, unwrap);
     throw error;
   };
-  let onnxruntimeState:
-    | { state: "unloaded"; load: () => Pointer<VoicevoxOnnxruntime> }
-    | { state: "loaded"; ptr: Pointer<VoicevoxOnnxruntime> }
-    | { state: "errored"; reason: unknown } = {
-      state: "unloaded",
-      load: voicevox_onnxruntime_init_once
-        ? () => {
-          unwrap(
-            voicevox_onnxruntime_init_once(syncPtrBuf),
-            "voicevox_onnxruntime_init_once",
-          );
-          return Pointer.create(syncPtrCell[0]);
+  let onnxruntime: Pointer<VoicevoxOnnxruntime> | undefined;
+  const getOnnxruntime = (path?: string) => {
+    if (onnxruntime === undefined) {
+      if (voicevox_onnxruntime_init_once) {
+        unwrap(
+          voicevox_onnxruntime_init_once(syncPtrBuf),
+          "voicevox_onnxruntime_init_once",
+        );
+      } else {
+        const optionsStruct = voicevox_make_default_load_onnxruntime_options!();
+        let pathBuf: Uint8Array<ArrayBuffer> | undefined;
+        if (path !== undefined) {
+          pathBuf = encodeCString(path);
+          const view = asDataView(optionsStruct);
+          const ptr = Pointer.value(Pointer.of(pathBuf));
+          view.setBigUint64(0, ptr, littleEndian);
         }
-        : () => {
-          const optionsStruct =
-            voicevox_make_default_load_onnxruntime_options!();
-          if (onnxruntimePathBuf) {
-            const view = asDataView(optionsStruct);
-            const ptr = Pointer.value(Pointer.of(onnxruntimePathBuf));
-            view.setBigUint64(0, ptr, littleEndian);
-          }
-          unwrap(
-            voicevox_onnxruntime_load_once!(optionsStruct, syncPtrBuf),
-            "voicevox_onnxruntime_load_once",
-          );
-          if (onnxruntimePathBuf) {
-            livenessBarrier(onnxruntimePathBuf);
-          }
-          return Pointer.create(syncPtrCell[0]);
-        },
-    };
-  const getOnnxruntime = () => {
-    if (onnxruntimeState.state === "unloaded") {
-      try {
-        onnxruntimeState = { state: "loaded", ptr: onnxruntimeState.load() };
-      } catch (e) {
-        onnxruntimeState = { state: "errored", reason: e };
+        unwrap(
+          voicevox_onnxruntime_load_once!(optionsStruct, syncPtrBuf),
+          "voicevox_onnxruntime_load_once",
+        );
+        if (pathBuf) {
+          livenessBarrier(pathBuf);
+        }
       }
+      onnxruntime = Pointer.create(syncPtrCell[0]);
     }
-    switch (onnxruntimeState.state) {
-      case "loaded":
-        return onnxruntimeState.ptr;
-      case "errored":
-        throw onnxruntimeState.reason;
-    }
+    return onnxruntime;
   };
   const SynthesizerHandle = createManagedPointerClass(
     voicevox_synthesizer_delete,
@@ -720,14 +699,32 @@ export function load(
   const UserDictHandle = createManagedPointerClass(
     voicevox_user_dict_delete,
   );
+  let cachedVersionedFilename: string | undefined;
+  let cachedUnversionedFilename: string | undefined;
+  const Onnxruntime = voicevox_onnxruntime_init_once ? undefined : {
+    get versionedFilename() {
+      return cachedVersionedFilename ??= PointerView.getCString(
+        voicevox_get_onnxruntime_lib_versioned_filename!()!,
+      );
+    },
+    get unversionedFilename() {
+      return cachedUnversionedFilename ??= PointerView.getCString(
+        voicevox_get_onnxruntime_lib_unversioned_filename!()!,
+      );
+    },
+    load(path?: string | URL) {
+      getOnnxruntime(path === undefined ? undefined : asPath(path));
+    },
+  } satisfies Onnxruntime;
   let cachedSupportedDevices: SupportedDevices | undefined;
   let synthesizerGetHandle: (o: Synthesizer) => SynthesizerHandle;
 
   class SynthesizerImpl implements Synthesizer {
+    #cachedGpuEnabled: boolean | undefined;
     #cachedSpeakers: readonly Speaker[] | undefined;
 
     static get supportedDevices(): SupportedDevices {
-      if (!cachedSupportedDevices) {
+      if (cachedSupportedDevices === undefined) {
         unwrap(
           voicevox_onnxruntime_create_supported_devices_json(
             getOnnxruntime(),
@@ -798,11 +795,13 @@ export function load(
     }
 
     get gpuEnabled(): boolean {
-      return voicevox_synthesizer_is_gpu_mode(synthesizerGetHandle(this).raw);
+      return this.#cachedGpuEnabled ??= voicevox_synthesizer_is_gpu_mode(
+        synthesizerGetHandle(this).raw,
+      );
     }
 
     get speakers(): readonly Speaker[] {
-      if (!this.#cachedSpeakers) {
+      if (this.#cachedSpeakers === undefined) {
         const ptr = voicevox_synthesizer_create_metas_json(
           synthesizerGetHandle(this).raw,
         )!;
@@ -1475,6 +1474,7 @@ export function load(
 
     dispose(): undefined {
       this.#handle.drop();
+      this.#cachedGpuEnabled = undefined;
       this.#cachedSpeakers = undefined;
     }
 
@@ -1527,7 +1527,7 @@ export function load(
     }
 
     get speakers(): readonly Speaker[] {
-      if (!this.#cachedSpeakers) {
+      if (this.#cachedSpeakers === undefined) {
         const ptr = voicevox_voice_model_file_create_metas_json(
           voiceModelFileGetHandle(this).raw,
         )!;
@@ -1549,9 +1549,8 @@ export function load(
     constructor(key: unknown = undefined, handle: VoiceModelFileHandle) {
       illegalConstructor(key);
       this.#handle = handle;
-      const idBuf = new Uint8Array(16);
-      voicevox_voice_model_file_id(handle.raw, idBuf);
-      this.#id = uuidFromBytes(idBuf);
+      voicevox_voice_model_file_id(handle.raw, syncIdBuf);
+      this.#id = uuidFromBytes(syncIdBuf);
     }
 
     dispose(): undefined {
@@ -1814,10 +1813,13 @@ export function load(
 
   const unload = (): undefined => {
     lib.close();
+    cachedVersionedFilename = undefined;
+    cachedUnversionedFilename = undefined;
     cachedSupportedDevices = undefined;
   };
-  return Object.freeze({
+  return Object.freeze<VoicevoxCoreModule>({
     VERSION: PointerView.getCString(voicevox_get_version()!),
+    Onnxruntime,
     Synthesizer: SynthesizerImpl as SynthesizerConstructor,
     VoiceModelFile: VoiceModelFileImpl as VoiceModelFileConstructor,
     OpenJtalk: OpenJtalkImpl as OpenJtalkConstructor,
