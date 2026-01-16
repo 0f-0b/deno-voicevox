@@ -60,15 +60,65 @@ export interface SupportedDevices {
   readonly dml: boolean;
 }
 
-export interface Phoneme {
-  phoneme: string;
+export type Consonant =
+  | "b"
+  | "by"
+  | "ch"
+  | "d"
+  | "dy"
+  | "f"
+  | "g"
+  | "gw"
+  | "gy"
+  | "h"
+  | "hy"
+  | "j"
+  | "k"
+  | "kw"
+  | "ky"
+  | "m"
+  | "my"
+  | "n"
+  | "ny"
+  | "p"
+  | "py"
+  | "r"
+  | "ry"
+  | "s"
+  | "sh"
+  | "t"
+  | "ts"
+  | "ty"
+  | "v"
+  | "w"
+  | "y"
+  | "z";
+export type NonConsonant =
+  | "pau"
+  | `${string}sil${string}`
+  | "A"
+  | "E"
+  | "I"
+  | "N"
+  | "O"
+  | "U"
+  | "a"
+  | "cl"
+  | "e"
+  | "i"
+  | "o"
+  | "u";
+export type Phoneme = Consonant | NonConsonant;
+
+export interface LengthPhoneme<P extends Phoneme = Phoneme> {
+  phoneme: P;
   length: number;
 }
 
 export interface Mora {
   text: string;
-  consonant?: Phoneme | undefined;
-  vowel: Phoneme;
+  consonant?: LengthPhoneme<Consonant> | undefined;
+  vowel: LengthPhoneme<NonConsonant>;
   pitch: number;
 }
 
@@ -362,9 +412,9 @@ interface SpeakerJson {
 
 interface MoraJson {
   text: string;
-  consonant?: string | null | undefined;
+  consonant?: Consonant | null | undefined;
   consonant_length?: number | null | undefined;
-  vowel: string;
+  vowel: NonConsonant;
   vowel_length: number;
   pitch: number;
 }
