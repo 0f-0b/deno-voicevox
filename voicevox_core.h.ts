@@ -68,10 +68,10 @@ export default generateAsyncVariants({
     result: VoicevoxLoadOnnxruntimeOptions,
     optional: true,
   },
-  voicevox_onnxruntime_get: {
-    parameters: [],
-    result: VoicevoxOnnxruntimePointer,
-  },
+  // voicevox_onnxruntime_get: {
+  //   parameters: [],
+  //   result: VoicevoxOnnxruntimePointer,
+  // },
   voicevox_onnxruntime_load_once: {
     parameters: [VoicevoxLoadOnnxruntimeOptions, "buffer"],
     result: VoicevoxResultCode,
@@ -112,6 +112,38 @@ export default generateAsyncVariants({
     parameters: ["buffer", "buffer"],
     result: VoicevoxResultCode,
   },
+  // voicevox_audio_query_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_accent_phrase_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_mora_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_score_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_note_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_frame_audio_query_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_frame_phoneme_validate: {
+  //   parameters: ["buffer"],
+  //   result: VoicevoxResultCode,
+  // },
+  // voicevox_ensure_compatible: {
+  //   parameters: ["buffer", "buffer"],
+  //   result: VoicevoxResultCode,
+  // },
   voicevox_voice_model_file_open: {
     parameters: ["buffer", "buffer"],
     result: VoicevoxResultCode,
@@ -151,10 +183,10 @@ export default generateAsyncVariants({
     parameters: [VoicevoxSynthesizerPointer, "buffer"],
     result: VoicevoxResultCode,
   },
-  voicevox_synthesizer_get_onnxruntime: {
-    parameters: [VoicevoxSynthesizerPointer],
-    result: VoicevoxOnnxruntimePointer,
-  },
+  // voicevox_synthesizer_get_onnxruntime: {
+  //   parameters: [VoicevoxSynthesizerPointer],
+  //   result: VoicevoxOnnxruntimePointer,
+  // },
   voicevox_synthesizer_is_gpu_mode: {
     parameters: [VoicevoxSynthesizerPointer],
     result: "bool",
@@ -244,6 +276,44 @@ export default generateAsyncVariants({
       "buffer",
       "u32",
       VoicevoxTtsOptions,
+      "buffer",
+      "buffer",
+    ],
+    result: VoicevoxResultCode,
+    nonblocking: "varies",
+  },
+  voicevox_synthesizer_create_sing_frame_audio_query: {
+    parameters: [VoicevoxSynthesizerPointer, "buffer", "u32", "buffer"],
+    result: VoicevoxResultCode,
+    nonblocking: "varies",
+  },
+  voicevox_synthesizer_create_sing_frame_f0: {
+    parameters: [
+      VoicevoxSynthesizerPointer,
+      "buffer",
+      "buffer",
+      "u32",
+      "buffer",
+    ],
+    result: VoicevoxResultCode,
+    nonblocking: "varies",
+  },
+  voicevox_synthesizer_create_sing_frame_volume: {
+    parameters: [
+      VoicevoxSynthesizerPointer,
+      "buffer",
+      "buffer",
+      "u32",
+      "buffer",
+    ],
+    result: VoicevoxResultCode,
+    nonblocking: "varies",
+  },
+  voicevox_synthesizer_frame_synthesis: {
+    parameters: [
+      VoicevoxSynthesizerPointer,
+      "buffer",
+      "u32",
       "buffer",
       "buffer",
     ],

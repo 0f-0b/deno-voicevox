@@ -147,6 +147,36 @@ export interface CreateUtteranceResult {
   kana: string;
 }
 
+export interface FramePhoneme {
+  phoneme: Phoneme;
+  frameLength: number;
+  marker?: string | undefined;
+}
+
+export interface Song {
+  frameF0: number[];
+  frameVolume: number[];
+  framePhonemes: FramePhoneme[];
+  volume: number;
+  outputSampleRate: number;
+  outputStereo: boolean;
+}
+
+export interface Note {
+  lyric: string;
+  key: number;
+}
+
+export interface NoteOrPause {
+  note: Note | null;
+  frameLength: number;
+  marker?: string | undefined;
+}
+
+export interface Score {
+  notes: NoteOrPause[];
+}
+
 export interface TtsOptions {
   enableInterrogativeUpspeak?: boolean | undefined;
 }
@@ -237,6 +267,30 @@ export interface Synthesizer extends Disposable {
     voiceId: number,
     accentPhrases: readonly AccentPhrase[],
   ): AccentPhrase[];
+  createSong(voiceId: number, score: Score): Promise<Song>;
+  createSongSync(voiceId: number, score: Score): Song;
+  createFrameF0(
+    voiceId: number,
+    score: Score,
+    song: Pick<Song, "framePhonemes">,
+  ): Promise<number[]>;
+  createFrameF0Sync(
+    voiceId: number,
+    score: Score,
+    song: Pick<Song, "framePhonemes">,
+  ): number[];
+  createFrameVolume(
+    voiceId: number,
+    score: Score,
+    song: Pick<Song, "frameF0" | "framePhonemes">,
+  ): Promise<number[]>;
+  createFrameVolumeSync(
+    voiceId: number,
+    score: Score,
+    song: Pick<Song, "frameF0" | "framePhonemes">,
+  ): number[];
+  sing(voiceId: number, song: Song): Promise<Uint8Array<ArrayBuffer>>;
+  singSync(voiceId: number, song: Song): Uint8Array<ArrayBuffer>;
   dispose(): undefined;
 }
 
@@ -439,6 +493,32 @@ interface AudioQueryJson {
   kana?: string;
 }
 
+interface NoteJson {
+  id?: string | null | undefined;
+  key?: number | null | undefined;
+  lyric: string;
+  frame_length: number;
+}
+
+interface ScoreJson {
+  notes: NoteJson[];
+}
+
+interface FramePhonemeJson {
+  phoneme: Phoneme;
+  frame_length: number;
+  note_id?: string | null | undefined;
+}
+
+interface FrameAudioQueryJson {
+  f0: number[];
+  volume: number[];
+  phonemes: FramePhonemeJson[];
+  volumeScale: number;
+  outputSamplingRate: number;
+  outputStereo: boolean;
+}
+
 function supportedDevicesFromJson(
   json: SupportedDevicesJson,
 ): SupportedDevices {
@@ -557,6 +637,58 @@ function createUtteranceResultFromJson(
   return {
     utterance: utteranceFromJson(voiceId, json),
     kana: json.kana!,
+  };
+}
+
+function noteToJson(value: NoteOrPause): NoteJson {
+  return {
+    id: value.marker,
+    key: value.note?.key,
+    lyric: value.note?.lyric ?? "",
+    frame_length: value.frameLength,
+  };
+}
+
+function scoreToJson(value: Score): ScoreJson {
+  return {
+    notes: value.notes.map(noteToJson),
+  };
+}
+
+function framePhonemeToJson(value: FramePhoneme): FramePhonemeJson {
+  return {
+    phoneme: value.phoneme,
+    frame_length: value.frameLength,
+  };
+}
+
+function framePhonemeFromJson(json: FramePhonemeJson): FramePhoneme {
+  return {
+    phoneme: json.phoneme,
+    frameLength: json.frame_length,
+    marker: json.note_id ?? undefined,
+  };
+}
+
+function songToJson(value: Song): FrameAudioQueryJson {
+  return {
+    f0: value.frameF0,
+    volume: value.frameVolume,
+    phonemes: value.framePhonemes.map(framePhonemeToJson),
+    volumeScale: value.volume,
+    outputSamplingRate: value.outputSampleRate,
+    outputStereo: value.outputStereo,
+  };
+}
+
+function songFromJson(json: FrameAudioQueryJson): Song {
+  return {
+    frameF0: json.f0,
+    frameVolume: json.volume,
+    framePhonemes: json.phonemes.map(framePhonemeFromJson),
+    volume: json.volumeScale,
+    outputSampleRate: json.outputSamplingRate,
+    outputStereo: json.outputStereo,
   };
 }
 
@@ -707,6 +839,14 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
     voicevox_synthesizer_tts_from_kana_async,
     voicevox_synthesizer_tts,
     voicevox_synthesizer_tts_async,
+    voicevox_synthesizer_create_sing_frame_audio_query,
+    voicevox_synthesizer_create_sing_frame_audio_query_async,
+    voicevox_synthesizer_create_sing_frame_f0,
+    voicevox_synthesizer_create_sing_frame_f0_async,
+    voicevox_synthesizer_create_sing_frame_volume,
+    voicevox_synthesizer_create_sing_frame_volume_async,
+    voicevox_synthesizer_frame_synthesis,
+    voicevox_synthesizer_frame_synthesis_async,
     voicevox_json_free,
     voicevox_wav_free,
     voicevox_error_result_to_message,
@@ -1612,6 +1752,267 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
         voicevox_json_free(ptr);
       }
       return (JSON.parse(json) as AccentPhraseJson[]).map(accentPhraseFromJson);
+    }
+
+    async createSong(voiceId: number, score: Score): Promise<Song> {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(JSON.stringify(scoreToJson(score)));
+      const ptrCell = new BigUint64Array(1);
+      using _ = asyncOps.track();
+      unwrap(
+        await voicevox_synthesizer_create_sing_frame_audio_query_async(
+          thisHandle.raw,
+          jsonBuf,
+          voiceId,
+          ptrCell,
+        ),
+        "voicevox_synthesizer_create_sing_frame_audio_query",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(jsonBuf);
+      const ptr = Pointer.create(ptrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return songFromJson(JSON.parse(json) as FrameAudioQueryJson);
+    }
+
+    createSongSync(voiceId: number, score: Score): Song {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(JSON.stringify(scoreToJson(score)));
+      unwrap(
+        voicevox_synthesizer_create_sing_frame_audio_query(
+          thisHandle.raw,
+          jsonBuf,
+          voiceId,
+          syncPtrBuf,
+        ),
+        "voicevox_synthesizer_create_sing_frame_audio_query",
+      );
+      const ptr = Pointer.create(syncPtrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return songFromJson(JSON.parse(json) as FrameAudioQueryJson);
+    }
+
+    async createFrameF0(
+      voiceId: number,
+      score: Score,
+      song: Pick<Song, "framePhonemes">,
+    ): Promise<number[]> {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const scoreJsonBuf = encodeCString(JSON.stringify(scoreToJson(score)));
+      const songJsonBuf = encodeCString(JSON.stringify({
+        f0: [],
+        volume: [],
+        phonemes: song.framePhonemes.map(framePhonemeToJson),
+        volumeScale: 1,
+        outputSamplingRate: 24000,
+        outputStereo: false,
+      }));
+      const ptrCell = new BigUint64Array(1);
+      using _ = asyncOps.track();
+      unwrap(
+        await voicevox_synthesizer_create_sing_frame_f0_async(
+          thisHandle.raw,
+          scoreJsonBuf,
+          songJsonBuf,
+          voiceId,
+          ptrCell,
+        ),
+        "voicevox_synthesizer_create_sing_frame_f0",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(scoreJsonBuf);
+      livenessBarrier(songJsonBuf);
+      const ptr = Pointer.create(ptrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return JSON.parse(json) as number[];
+    }
+
+    createFrameF0Sync(
+      voiceId: number,
+      score: Score,
+      song: Pick<Song, "framePhonemes">,
+    ): number[] {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const scoreJsonBuf = encodeCString(JSON.stringify(scoreToJson(score)));
+      const frameAudioQueryJsonBuf = encodeCString(JSON.stringify({
+        f0: [],
+        volume: [],
+        phonemes: song.framePhonemes.map(framePhonemeToJson),
+        volumeScale: 1,
+        outputSamplingRate: 24000,
+        outputStereo: false,
+      }));
+      unwrap(
+        voicevox_synthesizer_create_sing_frame_f0(
+          thisHandle.raw,
+          scoreJsonBuf,
+          frameAudioQueryJsonBuf,
+          voiceId,
+          syncPtrBuf,
+        ),
+        "voicevox_synthesizer_create_sing_frame_f0",
+      );
+      const ptr = Pointer.create(syncPtrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return JSON.parse(json) as number[];
+    }
+
+    async createFrameVolume(
+      voiceId: number,
+      score: Score,
+      song: Pick<Song, "frameF0" | "framePhonemes">,
+    ): Promise<number[]> {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const scoreJsonBuf = encodeCString(JSON.stringify(scoreToJson(score)));
+      const songJsonBuf = encodeCString(JSON.stringify({
+        f0: song.frameF0,
+        volume: [],
+        phonemes: song.framePhonemes.map(framePhonemeToJson),
+        volumeScale: 1,
+        outputSamplingRate: 24000,
+        outputStereo: false,
+      }));
+      const ptrCell = new BigUint64Array(1);
+      using _ = asyncOps.track();
+      unwrap(
+        await voicevox_synthesizer_create_sing_frame_volume_async(
+          thisHandle.raw,
+          scoreJsonBuf,
+          songJsonBuf,
+          voiceId,
+          ptrCell,
+        ),
+        "voicevox_synthesizer_create_sing_frame_volume",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(scoreJsonBuf);
+      livenessBarrier(songJsonBuf);
+      const ptr = Pointer.create(ptrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return JSON.parse(json) as number[];
+    }
+
+    createFrameVolumeSync(
+      voiceId: number,
+      score: Score,
+      song: Pick<Song, "frameF0" | "framePhonemes">,
+    ): number[] {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const scoreJsonBuf = encodeCString(JSON.stringify(scoreToJson(score)));
+      const frameAudioQueryJsonBuf = encodeCString(JSON.stringify({
+        f0: song.frameF0,
+        volume: [],
+        phonemes: song.framePhonemes.map(framePhonemeToJson),
+        volumeScale: 1,
+        outputSamplingRate: 24000,
+        outputStereo: false,
+      }));
+      unwrap(
+        voicevox_synthesizer_create_sing_frame_volume(
+          thisHandle.raw,
+          scoreJsonBuf,
+          frameAudioQueryJsonBuf,
+          voiceId,
+          syncPtrBuf,
+        ),
+        "voicevox_synthesizer_create_sing_frame_volume",
+      );
+      const ptr = Pointer.create(syncPtrCell[0])!;
+      let json: string;
+      try {
+        json = PointerView.getCString(ptr);
+      } finally {
+        voicevox_json_free(ptr);
+      }
+      return JSON.parse(json) as number[];
+    }
+
+    async sing(voiceId: number, song: Song): Promise<Uint8Array<ArrayBuffer>> {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(JSON.stringify(songToJson(song)));
+      const ptrCell = new BigUint64Array(1);
+      const lenCell = new BigUint64Array(1);
+      using _ = asyncOps.track();
+      unwrap(
+        await voicevox_synthesizer_frame_synthesis_async(
+          thisHandle.raw,
+          jsonBuf,
+          voiceId,
+          lenCell,
+          ptrCell,
+        ),
+        "voicevox_synthesizer_frame_synthesis",
+      );
+      livenessBarrier(thisHandle);
+      livenessBarrier(jsonBuf);
+      const ptr = Pointer.create(ptrCell[0])!;
+      const len = Number(lenCell[0]);
+      let buf: Uint8Array<ArrayBuffer>;
+      try {
+        buf = new Uint8Array(len);
+        PointerView.copyInto(ptr, buf);
+      } finally {
+        voicevox_wav_free(ptr);
+      }
+      return buf;
+    }
+
+    singSync(voiceId: number, song: Song): Uint8Array<ArrayBuffer> {
+      throwIfUnloading();
+      const thisHandle = synthesizerGetHandle(this);
+      const jsonBuf = encodeCString(JSON.stringify(songToJson(song)));
+      unwrap(
+        voicevox_synthesizer_frame_synthesis(
+          thisHandle.raw,
+          jsonBuf,
+          voiceId,
+          syncLenBuf,
+          syncPtrBuf,
+        ),
+        "voicevox_synthesizer_frame_synthesis",
+      );
+      const ptr = Pointer.create(syncPtrCell[0])!;
+      const len = Number(syncLenCell[0]);
+      let buf: Uint8Array<ArrayBuffer>;
+      try {
+        buf = new Uint8Array(len);
+        PointerView.copyInto(ptr, buf);
+      } finally {
+        voicevox_wav_free(ptr);
+      }
+      return buf;
     }
 
     readonly #handle: SynthesizerHandle;
