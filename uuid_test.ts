@@ -1,10 +1,9 @@
-import { assertEquals } from "@std/assert/equals";
-import { assertStrictEquals } from "@std/assert/strict-equals";
+import assert from "node:assert/strict";
 
 import { uuidFromBytes, uuidToBytes } from "./uuid.ts";
 
 Deno.test("uuidFromBytes", { permissions: "none" }, () => {
-  assertStrictEquals(
+  assert.equal(
     // deno-fmt-ignore
     uuidFromBytes(Uint8Array.of(
       0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0x32, 0x04,
@@ -15,7 +14,7 @@ Deno.test("uuidFromBytes", { permissions: "none" }, () => {
 });
 
 Deno.test("uuidToBytes", { permissions: "none" }, () => {
-  assertEquals(
+  assert.deepEqual(
     uuidToBytes("d41d8cd9-8f00-3204-a980-0998ecf8427e"),
     // deno-fmt-ignore
     Uint8Array.of(

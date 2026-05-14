@@ -1,8 +1,5 @@
-import { assert } from "@std/assert/assert";
-import { assertRejects } from "@std/assert/rejects";
-import { assertStrictEquals } from "@std/assert/strict-equals";
-import { fromFileUrl } from "@std/path/from-file-url";
-import { join } from "@std/path/join";
+import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 
 async function exists(path: string | URL): Promise<boolean> {
   try {
@@ -16,13 +13,14 @@ async function exists(path: string | URL): Promise<boolean> {
   }
 }
 
-const root = fromFileUrl(new URL("..", import.meta.url));
-const examples = fromFileUrl(new URL(".", import.meta.url));
-const entryPoint = join(
-  examples,
-  Deno.build.os === "windows" ? "simple_tts_wrapper.cmd" : "simple_tts.ts",
+const root = fileURLToPath(new URL("..", import.meta.url));
+const entryPoint = fileURLToPath(
+  new URL(
+    Deno.build.os === "windows" ? "simple_tts_wrapper.cmd" : "simple_tts.ts",
+    import.meta.url,
+  ),
 );
-const outputWavPath = join(root, "audio.wav");
+const outputWavPath = `${root}/audio.wav`;
 
 Deno.test("simple_tts", {
   permissions: {
@@ -54,7 +52,7 @@ Deno.test("simple_tts", {
       stdout: "inherit",
       stderr: "inherit",
     }).output();
-    assertStrictEquals(code, 2);
-    await assertRejects(() => Deno.lstat(outputWavPath), Deno.errors.NotFound);
+    assert.equal(code, 2);
+    await assert.rejects(() => Deno.lstat(outputWavPath), Deno.errors.NotFound);
   });
 });

@@ -1,4 +1,4 @@
-import { fromFileUrl } from "@std/path/from-file-url";
+import { fileURLToPath } from "node:url";
 
 import {
   createManagedPointerClass,
@@ -400,7 +400,7 @@ function isSome<T>(value: T): value is NonNullable<T> {
 }
 
 function asPath(pathOrURL: string | URL): string {
-  return typeof pathOrURL === "string" ? pathOrURL : fromFileUrl(pathOrURL);
+  return typeof pathOrURL === "string" ? pathOrURL : fileURLToPath(pathOrURL);
 }
 
 function encodePath(pathOrURL: string | URL): Uint8Array<ArrayBuffer> {

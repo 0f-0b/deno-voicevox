@@ -1,6 +1,5 @@
-#!/usr/bin/env -S deno run --allow-import=jsr.io:443 --allow-write=audio.wav --allow-ffi
+#!/usr/bin/env -S deno run --allow-write=audio.wav --allow-ffi
 
-import { resolve } from "@std/path/resolve";
 import { load } from "@ud2/deno-voicevox";
 
 function libNameByOS(base: string): string {
@@ -16,7 +15,7 @@ function libNameByOS(base: string): string {
   }
 }
 
-const dynamicLibPath = resolve(libNameByOS("voicevox_core"));
+const dynamicLibPath = `./${libNameByOS("voicevox_core")}`;
 const openJtalkDictPath = "open_jtalk_dic_utf_8-1.11";
 const modelPath = "model/sample.vvm";
 const outputWavPath = "audio.wav";
@@ -29,7 +28,7 @@ const [text] = Deno.args;
 console.log("Initializing…");
 await using lib = load(dynamicLibPath);
 const { Onnxruntime, Synthesizer, VoiceModelFile, OpenJtalk } = lib.exports;
-Onnxruntime?.load(resolve(Onnxruntime.versionedFilename));
+Onnxruntime?.load(`./${Onnxruntime.versionedFilename}`);
 using openJtalk = await OpenJtalk.create(openJtalkDictPath);
 using synthesizer = Synthesizer.create(openJtalk);
 using model = await VoiceModelFile.open(modelPath);
