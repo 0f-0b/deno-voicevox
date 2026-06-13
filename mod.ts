@@ -14,6 +14,7 @@ import { uuidFromBytes, uuidToBytes } from "./uuid.ts";
 import symbols, {
   type OpenJtalkRc,
   type VoicevoxAccelerationMode,
+  type VoicevoxOnExistingVoiceModelId,
   type VoicevoxOnnxruntime,
   type VoicevoxSynthesizer,
   type VoicevoxUserDict,
@@ -177,6 +178,12 @@ export interface Score {
   notes: NoteOrPause[];
 }
 
+export type DuplicatePolicy = "error" | "replace" | "ignore";
+
+export interface LoadModelOptions {
+  onDuplicate?: DuplicatePolicy | undefined;
+}
+
 export interface TtsOptions {
   enableInterrogativeUpspeak?: boolean | undefined;
 }
@@ -188,8 +195,11 @@ export interface SynthesisOptions {
 export interface Synthesizer extends Disposable {
   readonly gpuEnabled: boolean;
   readonly speakers: readonly Speaker[];
-  loadModel(model: VoiceModelFile): Promise<undefined>;
-  loadModelSync(model: VoiceModelFile): undefined;
+  loadModel(
+    model: VoiceModelFile,
+    options?: LoadModelOptions,
+  ): Promise<undefined>;
+  loadModelSync(model: VoiceModelFile, options?: LoadModelOptions): undefined;
   unloadModel(modelId: string): undefined;
   isModelLoaded(modelId: string): boolean;
   tts(
@@ -692,41 +702,35 @@ function songFromJson(json: FrameAudioQueryJson): Song {
   };
 }
 
-function accelerationModeToInt(
-  value: AccelerationMode,
-): VoicevoxAccelerationMode {
-  switch (value) {
-    case "auto":
-      return 0;
-    case "cpu":
-      return 1;
-    case "gpu":
-      return 2;
-    default:
-      throw new RangeError(
-        'accelerationMode out of range; accepted values are "auto", "cpu" and "gpu"',
-      );
-  }
-}
-
-function partOfSpeechToInt(value: PartOfSpeech): VoicevoxUserDictWordType {
-  switch (value) {
-    case "proper noun":
-      return 0;
-    case "common noun":
-      return 1;
-    case "verb":
-      return 2;
-    case "adjective":
-      return 3;
-    case "suffix":
-      return 4;
-    default:
-      throw new RangeError(
-        'partOfSpeech out of range; accepted values are "proper noun", "common noun", "verb", "adjective" and "suffix"',
-      );
-  }
-}
+const accelerationModeToInt = Object.freeze<
+  Record<AccelerationMode, VoicevoxAccelerationMode>
+>({
+  // @ts-expect-error Remove prototype
+  __proto__: null,
+  "auto": 0,
+  "cpu": 1,
+  "gpu": 2,
+});
+const duplicatePolicyToInt = Object.freeze<
+  Record<DuplicatePolicy, VoicevoxOnExistingVoiceModelId>
+>({
+  // @ts-expect-error Remove prototype
+  __proto__: null,
+  "error": 0,
+  "replace": 1,
+  "ignore": 2,
+});
+const partOfSpeechToInt = Object.freeze<
+  Record<PartOfSpeech, VoicevoxUserDictWordType>
+>({
+  // @ts-expect-error Remove prototype
+  __proto__: null,
+  "proper noun": 0,
+  "common noun": 1,
+  "verb": 2,
+  "adjective": 3,
+  "suffix": 4,
+});
 
 function synthesizerOptionsToStruct(
   struct: Uint8Array<ArrayBuffer>,
@@ -735,11 +739,22 @@ function synthesizerOptionsToStruct(
   const view = asDataView(struct);
   const { accelerationMode } = value;
   if (accelerationMode !== undefined) {
-    view.setInt32(0, accelerationModeToInt(accelerationMode), littleEndian);
+    view.setInt32(0, accelerationModeToInt[accelerationMode], littleEndian);
   }
   const { numThreads } = value;
   if (numThreads !== undefined) {
     view.setUint16(4, numThreads, littleEndian);
+  }
+}
+
+function loadModelOptionsToStruct(
+  struct: Uint8Array<ArrayBuffer>,
+  value: LoadModelOptions,
+): undefined {
+  const view = asDataView(struct);
+  const { onDuplicate } = value;
+  if (onDuplicate !== undefined) {
+    view.setInt32(0, duplicatePolicyToInt[onDuplicate], littleEndian);
   }
 }
 
@@ -772,7 +787,7 @@ function wordOptionsToStruct(
   const view = asDataView(struct);
   const { partOfSpeech } = value;
   if (partOfSpeech !== undefined) {
-    view.setInt32(24, partOfSpeechToInt(partOfSpeech), littleEndian);
+    view.setInt32(24, partOfSpeechToInt[partOfSpeech], littleEndian);
   }
   const { priority } = value;
   if (priority !== undefined) {
@@ -810,6 +825,7 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
     voicevox_voice_model_file_delete,
     voicevox_synthesizer_new,
     voicevox_synthesizer_delete,
+    voicevox_make_default_load_voice_model_options,
     voicevox_synthesizer_load_voice_model,
     voicevox_synthesizer_load_voice_model_async,
     voicevox_synthesizer_unload_voice_model,
@@ -1072,15 +1088,23 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
       return this.#cachedSpeakers;
     }
 
-    async loadModel(model: VoiceModelFile): Promise<undefined> {
+    async loadModel(
+      model: VoiceModelFile,
+      options?: LoadModelOptions,
+    ): Promise<undefined> {
       throwIfUnloading();
       const thisHandle = synthesizerGetHandle(this);
       const modelHandle = voiceModelFileGetHandle(model);
+      const optionsStruct = voicevox_make_default_load_voice_model_options();
+      if (options !== undefined) {
+        loadModelOptionsToStruct(optionsStruct, options);
+      }
       using _ = asyncOps.track();
       unwrap(
         await voicevox_synthesizer_load_voice_model_async(
           thisHandle.raw,
           modelHandle.raw,
+          optionsStruct,
         ),
         "voicevox_synthesizer_load_voice_model",
       );
@@ -1089,12 +1113,23 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
       this.#cachedSpeakers = undefined;
     }
 
-    loadModelSync(model: VoiceModelFile): undefined {
+    loadModelSync(
+      model: VoiceModelFile,
+      options?: LoadModelOptions,
+    ): undefined {
       throwIfUnloading();
       const thisHandle = synthesizerGetHandle(this);
       const modelHandle = voiceModelFileGetHandle(model);
+      const optionsStruct = voicevox_make_default_load_voice_model_options();
+      if (options !== undefined) {
+        loadModelOptionsToStruct(optionsStruct, options);
+      }
       unwrap(
-        voicevox_synthesizer_load_voice_model(thisHandle.raw, modelHandle.raw),
+        voicevox_synthesizer_load_voice_model(
+          thisHandle.raw,
+          modelHandle.raw,
+          optionsStruct,
+        ),
         "voicevox_synthesizer_load_voice_model",
       );
       this.#cachedSpeakers = undefined;

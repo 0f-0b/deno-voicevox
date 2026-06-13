@@ -9,6 +9,10 @@ export type VoicevoxAccelerationMode = 0 | 1 | 2;
 export const VoicevoxAccelerationMode = "i32" as NativeI32EnumType<
   VoicevoxAccelerationMode
 >;
+export type VoicevoxOnExistingVoiceModelId = 0 | 1 | 2;
+export const VoicevoxOnExistingVoiceModelId = "i32" as NativeI32EnumType<
+  VoicevoxOnExistingVoiceModelId
+>;
 export const VoicevoxResultCode = "i32" satisfies NativeType;
 export type VoicevoxUserDictWordType = 0 | 1 | 2 | 3 | 4;
 export const VoicevoxUserDictWordType = "i32" as NativeI32EnumType<
@@ -42,6 +46,9 @@ export const VoicevoxLoadOnnxruntimeOptions = {
 } satisfies NativeType;
 export const VoicevoxInitializeOptions = {
   struct: [VoicevoxAccelerationMode, "u16"],
+} satisfies NativeType;
+export const VoicevoxLoadVoiceModelOptions = {
+  struct: [VoicevoxOnExistingVoiceModelId],
 } satisfies NativeType;
 export const VoicevoxSynthesisOptions = {
   struct: ["bool"],
@@ -174,8 +181,16 @@ export default generateAsyncVariants({
     parameters: [VoicevoxSynthesizerPointer],
     result: "void",
   },
+  voicevox_make_default_load_voice_model_options: {
+    parameters: [],
+    result: VoicevoxLoadVoiceModelOptions,
+  },
   voicevox_synthesizer_load_voice_model: {
-    parameters: [VoicevoxSynthesizerPointer, VoicevoxVoiceModelFilePointer],
+    parameters: [
+      VoicevoxSynthesizerPointer,
+      VoicevoxVoiceModelFilePointer,
+      VoicevoxLoadVoiceModelOptions,
+    ],
     result: VoicevoxResultCode,
     nonblocking: "varies",
   },
