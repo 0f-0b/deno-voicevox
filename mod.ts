@@ -457,7 +457,12 @@ interface SupportedDevicesJson {
   dml: boolean;
 }
 
-type StyleTypeJson = "talk" | "singing_teacher" | "frame_decode" | "sing";
+type StyleTypeJson =
+  | "talk"
+  | "singing_teacher"
+  | "frame_decode"
+  | "sing"
+  | "streaming_talk";
 
 interface StyleJson {
   id: number;
@@ -542,6 +547,7 @@ function supportedDevicesFromJson(
 function capabilitiesFromJson(json: StyleTypeJson): readonly Capability[] {
   switch (json) {
     case "talk":
+    case "streaming_talk":
       return Object.freeze(["talk"]);
     case "singing_teacher":
       return Object.freeze(["singing teacher"]);
