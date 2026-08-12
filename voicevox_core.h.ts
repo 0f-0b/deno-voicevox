@@ -60,12 +60,20 @@ export const VoicevoxUserDictWord = {
   struct: ["pointer", "pointer", "usize", VoicevoxUserDictWordType, "u32"],
 } satisfies NativeType;
 export default generateAsyncVariants({
-  voicevox_get_onnxruntime_lib_versioned_filename: {
+  voicevox_get_onnxruntime_lib_min_required_minor_version: {
+    parameters: [],
+    result: "u32",
+  },
+  voicevox_get_onnxruntime_lib_max_supported_minor_version: {
+    parameters: [],
+    result: "u32",
+  },
+  voicevox_get_onnxruntime_lib_recommended_versioned_filename: {
     parameters: [],
     result: "pointer",
     optional: true,
   },
-  voicevox_get_onnxruntime_lib_unversioned_filename: {
+  voicevox_get_onnxruntime_lib_recommended_unversioned_filename: {
     parameters: [],
     result: "pointer",
     optional: true,

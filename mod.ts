@@ -33,8 +33,8 @@ export class VoicevoxError extends Error {
 }
 
 export interface Onnxruntime {
-  readonly versionedFilename: string;
-  readonly unversionedFilename: string;
+  readonly recommendedVersionedFilename: string;
+  readonly recommendedUnversionedFilename: string;
   load: (path?: string | URL) => undefined;
 }
 
@@ -810,8 +810,8 @@ type UserDictHandle = ManagedPointer<VoicevoxUserDict>;
 export function load(path: string | URL): VoicevoxCoreLibrary {
   const lib = DynamicLibrary.open(path, symbols);
   const {
-    voicevox_get_onnxruntime_lib_versioned_filename,
-    voicevox_get_onnxruntime_lib_unversioned_filename,
+    voicevox_get_onnxruntime_lib_recommended_versioned_filename,
+    voicevox_get_onnxruntime_lib_recommended_unversioned_filename,
     voicevox_make_default_load_onnxruntime_options,
     voicevox_onnxruntime_load_once,
     voicevox_onnxruntime_init_once,
@@ -959,26 +959,26 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
     throwIfUnloading();
     voicevox_user_dict_delete(ptr);
   });
-  let cachedVersionedFilename: string | undefined;
-  let cachedUnversionedFilename: string | undefined;
+  let cachedRecommendedVersionedFilename: string | undefined;
+  let cachedRecommendedUnversionedFilename: string | undefined;
   const Onnxruntime = voicevox_onnxruntime_init_once ? undefined : {
-    get versionedFilename() {
-      if (cachedVersionedFilename === undefined) {
+    get recommendedVersionedFilename() {
+      if (cachedRecommendedVersionedFilename === undefined) {
         throwIfUnloading();
-        cachedVersionedFilename = PointerView.getCString(
-          voicevox_get_onnxruntime_lib_versioned_filename!()!,
+        cachedRecommendedVersionedFilename = PointerView.getCString(
+          voicevox_get_onnxruntime_lib_recommended_versioned_filename!()!,
         );
       }
-      return cachedVersionedFilename;
+      return cachedRecommendedVersionedFilename;
     },
-    get unversionedFilename() {
-      if (cachedUnversionedFilename === undefined) {
+    get recommendedUnversionedFilename() {
+      if (cachedRecommendedUnversionedFilename === undefined) {
         throwIfUnloading();
-        cachedUnversionedFilename = PointerView.getCString(
-          voicevox_get_onnxruntime_lib_unversioned_filename!()!,
+        cachedRecommendedUnversionedFilename = PointerView.getCString(
+          voicevox_get_onnxruntime_lib_recommended_unversioned_filename!()!,
         );
       }
-      return cachedUnversionedFilename;
+      return cachedRecommendedUnversionedFilename;
     },
     load(path?: string | URL) {
       getOnnxruntime(path === undefined ? undefined : asPath(path));
@@ -2436,8 +2436,8 @@ export function load(path: string | URL): VoicevoxCoreLibrary {
   const unload = async (): Promise<undefined> => {
     unloading = true;
     cachedOnnxruntime = undefined;
-    cachedVersionedFilename = undefined;
-    cachedUnversionedFilename = undefined;
+    cachedRecommendedVersionedFilename = undefined;
+    cachedRecommendedUnversionedFilename = undefined;
     cachedSupportedDevices = undefined;
     await asyncOps.finished;
     lib.close();

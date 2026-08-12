@@ -13,14 +13,14 @@ jobs:
         uses: denoland/setup-deno@v2
       - name: Download VOICEVOX CORE
         run: |
-          curl -fLO --retry 10 'https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.1/voicevox_core-linux-x64-0.16.1.zip'
-          unzip -j voicevox_core-linux-x64-0.16.1.zip voicevox_core-linux-x64-0.16.1/lib/libvoicevox_core.so
-          rm voicevox_core-linux-x64-0.16.1.zip
+          curl -fLO --retry 10 'https://github.com/VOICEVOX/voicevox_core/releases/download/0.17.0/voicevox_core-linux-x64-0.17.0.zip'
+          unzip -j voicevox_core-linux-x64-0.17.0.zip voicevox_core-linux-x64-0.17.0/lib/libvoicevox_core.so
+          rm voicevox_core-linux-x64-0.17.0.zip
       - name: Download VOICEVOX ONNX runtime
         run: |
-          curl -fLO --retry 10 'https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-linux-x64-1.17.3.tgz'
-          tar --strip-components 2 -xf voicevox_onnxruntime-linux-x64-1.17.3.tgz voicevox_onnxruntime-linux-x64-1.17.3/lib/libvoicevox_onnxruntime.so.1.17.3
-          rm voicevox_onnxruntime-linux-x64-1.17.3.tgz
+          curl -fLO --retry 10 'https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.23.2/voicevox_onnxruntime-linux-x64-1.23.2.tgz'
+          tar --strip-components 2 -xf voicevox_onnxruntime-linux-x64-1.23.2.tgz voicevox_onnxruntime-linux-x64-1.23.2/lib/libvoicevox_onnxruntime.so.1.23.2
+          rm voicevox_onnxruntime-linux-x64-1.23.2.tgz
       - name: Download Open JTalk dictionary
         run: |
           curl -fLO --retry 10 'https://downloads.sourceforge.net/project/open-jtalk/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz'
@@ -29,7 +29,7 @@ jobs:
       - name: Download model
         run: |
           mkdir -p model
-          curl -fLo model/sample.vvm --retry 10 'https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.0/0.vvm'
+          curl -fLo model/sample.vvm --retry 10 'https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.17.0/0.vvm'
       - name: Lint
         run: deno task lint
       - name: Test

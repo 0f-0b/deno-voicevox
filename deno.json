@@ -2,10 +2,7 @@
   "name": "@ud2/deno-voicevox",
   "exports": "./mod.ts",
   "compilerOptions": {
-    "lib": [
-      "deno.ns",
-      "deno.shared_globals"
-    ],
+    "lib": ["deno.ns", "deno.shared_globals"],
     "exactOptionalPropertyTypes": true
   },
   "publish": {

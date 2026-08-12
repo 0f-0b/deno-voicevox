@@ -28,7 +28,7 @@ const [text] = Deno.args;
 console.log("Initializing…");
 await using lib = load(dynamicLibPath);
 const { Onnxruntime, Synthesizer, VoiceModelFile, OpenJtalk } = lib.exports;
-Onnxruntime?.load(`./${Onnxruntime.versionedFilename}`);
+Onnxruntime?.load(`./${Onnxruntime.recommendedVersionedFilename}`);
 using openJtalk = await OpenJtalk.create(openJtalkDictPath);
 using synthesizer = Synthesizer.create(openJtalk);
 using model = await VoiceModelFile.open(modelPath);
