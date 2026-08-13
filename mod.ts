@@ -797,7 +797,7 @@ function wordOptionsToStruct(
   }
   const { priority } = value;
   if (priority !== undefined) {
-    view.setUint32(28, priority, littleEndian);
+    view.setUint8(28, priority);
   }
 }
 

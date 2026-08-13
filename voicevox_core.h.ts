@@ -57,7 +57,7 @@ export const VoicevoxTtsOptions = {
   struct: ["bool"],
 } satisfies NativeType;
 export const VoicevoxUserDictWord = {
-  struct: ["pointer", "pointer", "usize", VoicevoxUserDictWordType, "u32"],
+  struct: ["pointer", "pointer", "usize", VoicevoxUserDictWordType, "u8"],
 } satisfies NativeType;
 export default generateAsyncVariants({
   voicevox_get_onnxruntime_lib_min_required_minor_version: {
